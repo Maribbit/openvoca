@@ -5,13 +5,13 @@
       "name": "Backend (FastAPI)",
       "type": "debugpy",
       "request": "launch",
-      "module": "uvicorn",
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "module": "fastapi",
       "args": [
-        "src.main:app",
-        "--reload"
+        "dev",
+        "src/main.py"
       ],
       "cwd": "${workspaceFolder}/backend",
-      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
       "justMyCode": false,
       "presentation": {
         "group": "OpenVoca",

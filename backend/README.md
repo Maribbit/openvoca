@@ -15,11 +15,7 @@ This is the backend component for OpenVoca, providing a REST API and acting as t
 uv sync
 
 # Run the development server (auto-reloads on file changes)
-# Use --no-sync to avoid re-resolving dependencies on every run.
-uv run --no-sync uvicorn src.main:app --reload
-
-# Alternative (equivalent) command without uv runtime sync behavior
-.venv\\Scripts\\python.exe -m uvicorn src.main:app --reload
+uv run fastapi dev src/main.py
 ```
 
 ## Testing & TDD
