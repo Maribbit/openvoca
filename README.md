@@ -53,6 +53,7 @@ OpenVoca is a monorepo containing both frontend and backend.
 This project follows Test-Driven Development (TDD):
 - **Frontend**: `pnpm run check` in the `frontend/` directory
 - **Backend**: `uv run ruff format --check .; uv run ruff check .; uv run pytest` in the `backend/` directory
+- **Specs**: `python scripts/check_traceability.py` at the repository root
 - **Both**: VS Code task `✅ Check OpenVoca (All)`
 
 ## Building a Release Package
