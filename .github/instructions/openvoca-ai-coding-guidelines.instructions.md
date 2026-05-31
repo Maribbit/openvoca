@@ -31,12 +31,15 @@ As an AI programming assistant working on this project, please adhere to the fol
 - Never recommend raw pip. Only use uv for python environment and dependency management.
 - Never create commits, amend commits, or push to remote unless the user explicitly asks for it.
 
-## 4. Testing & TDD (Test-Driven Development)
+## 4. Testing & Specs (Test-Driven Development)
 
-- **Red-Green-Refactor**: ALWAYS follow Test-Driven Development. When asked to implement complex logic, FIRST write failing tests (Red), THEN implement the code to pass it (Green), and finally optimize (Refactor). Do not generate massive chunks of business logic without tests.
+- **Specs-First**: Always refer to the acceptance criteria (AC) in `docs/specs/` before writing tests or code. Local OpenVoca uses these Chinese specification files as the source of truth for business logic.
+- **Traceability**: When writing a new test, MUST inject an inline comment (`# Covers: AC-XXX` for Python, `// Covers: AC-XXX` for TypeScript) on the line immediately preceding the test definition.
+- **Red-Green-Refactor**: ALWAYS follow Test-Driven Development. When asked to implement complex logic, FIRST write failing tests mapped to ACs (Red), THEN implement the code to pass it (Green), and finally optimize (Refactor). Do not generate massive chunks of business logic without tests.
 - **Frontend Stack**: Use vitest and @vue/test-utils.
 - **Backend Stack**: Use pytest and httpx (TestClient).
 - **Mandatory Check Commands**:
+  - Traceability: `python scripts/check_traceability.py`
   - Frontend: `pnpm run check`
   - Backend: `uv run ruff format --check .; uv run ruff check .; uv run pytest`
   - Workspace (VS Code task): `✅ Check OpenVoca (All)`
@@ -44,5 +47,5 @@ As an AI programming assistant working on this project, please adhere to the fol
 
 ## Guidelines
 
-- **[Concept & Rules](../../design/OpenVoca_Concept.md)**: Details the core mechanic.
+- **[Concept & Specs](../../docs/specs/README.md)**: Details the core mechanic and test mappings.
 - **[Toolchain](../../design/Toolchain.md)**: Dependency management and environments.
