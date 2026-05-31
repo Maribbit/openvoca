@@ -1,6 +1,7 @@
 from src.services.tokenizer import SentenceToken, tokenize_sentence
 
 
+# Covers: AC-TOK-001-01
 def test_tokenize_plain_sentence() -> None:
     """It should tokenize a simple sentence with POS tags from spaCy."""
     tokens = tokenize_sentence("A cat sat.")
@@ -27,6 +28,7 @@ def test_tokenize_plain_sentence() -> None:
     ]
 
 
+# Covers: AC-TOK-001-02
 def test_tokenize_with_target_words() -> None:
     """It should parse *word* as a target word and strip the asterisks."""
     tokens = tokenize_sentence("A *lantern* glowed.")
@@ -41,6 +43,7 @@ def test_tokenize_with_target_words() -> None:
     assert glowed.pos == "VERB"
 
 
+# Covers: AC-TOK-001-02, AC-TOK-003-02
 def test_tokenize_mixed_content() -> None:
     """It should handle punctuation next to markup."""
     tokens = tokenize_sentence("They *run*, said the *fox*!")
@@ -61,6 +64,7 @@ def test_tokenize_mixed_content() -> None:
     assert the_tok.is_word is False
 
 
+# Covers: AC-TOK-001-03
 def test_target_word_bypasses_stopword_filter() -> None:
     """A markdown-marked target must stay clickable even if it is a stop word."""
     tokens = tokenize_sentence("She said *the* softly.")
@@ -74,6 +78,7 @@ def test_target_word_bypasses_stopword_filter() -> None:
     assert she_tok.is_word is False
 
 
+# Covers: AC-TOK-001-02
 def test_tokenize_bold_markdown() -> None:
     """It should robustly handle **bold** markdown which LLMs sometimes output."""
     tokens = tokenize_sentence("A **lantern** glowed.")
@@ -87,6 +92,7 @@ def test_tokenize_bold_markdown() -> None:
     assert "*" not in texts
 
 
+# Covers: AC-TOK-001-01
 def test_tokenize_with_pos_for_all_words() -> None:
     """Every is_word=True token should have a non-None POS tag."""
     tokens = tokenize_sentence("The cat sat on a beautiful mat.")
@@ -95,6 +101,7 @@ def test_tokenize_with_pos_for_all_words() -> None:
             assert t.pos is not None, f"'{t.text}' should have POS"
 
 
+# Covers: AC-TOK-001-01
 def test_tokenize_distinguishes_leaves_by_context() -> None:
     """'leaves' as a noun vs verb should get different POS tags."""
     tokens_noun = tokenize_sentence("The leaves are beautiful.")
@@ -106,12 +113,14 @@ def test_tokenize_distinguishes_leaves_by_context() -> None:
     assert leaves_verb.pos == "VERB"
 
 
+# Covers: AC-TOK-001-04
 def test_tokenize_empty_sentence() -> None:
     """An empty string should return an empty list."""
     assert tokenize_sentence("") == []
     assert tokenize_sentence("   ") == []
 
 
+# Covers: AC-TOK-002-01
 def test_tokenize_contraction() -> None:
     """spaCy splits contractions; each part should be a token."""
     tokens = tokenize_sentence("Don't stop.")
@@ -121,6 +130,7 @@ def test_tokenize_contraction() -> None:
     assert "n't" in texts
 
 
+# Covers: AC-TOK-002-01
 def test_trailing_space_on_contractions() -> None:
     """'Do' in 'Don't' should have no trailing space so it renders as 'Don't'."""
     tokens = tokenize_sentence("Don't stop now.")
@@ -138,6 +148,7 @@ def test_trailing_space_on_contractions() -> None:
     assert dot_tok.trailing_space is False
 
 
+# Covers: AC-TOK-002-02
 def test_hyphenated_target_word() -> None:
     """A *hyphenated-compound* target should become a single merged target token."""
     tokens = tokenize_sentence("It was a *well-known* fact.")
@@ -153,6 +164,7 @@ def test_hyphenated_target_word() -> None:
     assert "known" not in texts
 
 
+# Covers: AC-TOK-002-02
 def test_hyphenated_non_target_word() -> None:
     """Non-target hyphenated words should also be merged into one token."""
     tokens = tokenize_sentence("I love lo-fi music.")
@@ -166,6 +178,7 @@ def test_hyphenated_non_target_word() -> None:
     assert "fi" not in texts
 
 
+# Covers: AC-TOK-002-02
 def test_hyphenated_chain() -> None:
     """Multi-part hyphenated words like 'state-of-the-art' are merged."""
     tokens = tokenize_sentence("It is a state-of-the-art design.")
@@ -179,6 +192,7 @@ def test_hyphenated_chain() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-TOK-003-01
 def test_well_noun_is_clickable() -> None:
     """'well' as a NOUN (water well) should NOT be filtered as a stopword."""
     tokens = tokenize_sentence("The well was deep.")
@@ -187,6 +201,7 @@ def test_well_noun_is_clickable() -> None:
     assert well_tok.is_word is True
 
 
+# Covers: AC-TOK-003-01
 def test_can_noun_is_clickable() -> None:
     """'can' as a NOUN (tin can) should NOT be filtered as a stopword."""
     tokens = tokenize_sentence("She opened the can quickly.")
@@ -195,6 +210,7 @@ def test_can_noun_is_clickable() -> None:
     assert can_tok.is_word is True
 
 
+# Covers: AC-TOK-003-01
 def test_will_noun_is_clickable() -> None:
     """'will' as a NOUN (testament) should NOT be filtered as a stopword."""
     tokens = tokenize_sentence("He left his will on the desk.")
@@ -203,6 +219,7 @@ def test_will_noun_is_clickable() -> None:
     assert will_tok.is_word is True
 
 
+# Covers: AC-TOK-003-01
 def test_auxiliaries_always_filtered() -> None:
     """Auxiliary uses of ambiguous words should still be filtered."""
     tokens = tokenize_sentence("She can run fast.")
@@ -216,6 +233,7 @@ def test_auxiliaries_always_filtered() -> None:
     assert will_tok.is_word is False
 
 
+# Covers: AC-TOK-003-02
 def test_function_pos_always_filtered() -> None:
     """Determiners, pronouns, prepositions, conjunctions should all be filtered."""
     tokens = tokenize_sentence("She and I walked to the bright store.")
@@ -231,6 +249,7 @@ def test_function_pos_always_filtered() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-TOK-004-01
 def test_tokens_include_lemma() -> None:
     """Every alphabetic token should carry its lemma from spaCy."""
     tokens = tokenize_sentence("The cats were running quickly.")
@@ -245,6 +264,7 @@ def test_tokens_include_lemma() -> None:
     assert dot.lemma is None
 
 
+# Covers: AC-TOK-004-02
 def test_double_s_lemma_preserved() -> None:
     """Words ending in double-s should not be spuriously de-pluralized."""
     tokens = tokenize_sentence("sheets of fiberglass covered the roof.")

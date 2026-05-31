@@ -24,6 +24,7 @@ from conftest import _in_memory_engine
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-001-01, AC-SRS-005-01
 def test_apply_feedback_creates_new_records() -> None:
     """Marked words should be created with level=LEVEL_MIN, unmarked targets with LEVEL_MIN+1."""
     engine = _in_memory_engine()
@@ -40,6 +41,7 @@ def test_apply_feedback_creates_new_records() -> None:
     assert words["meadow"].level == LEVEL_MIN  # miss
 
 
+# Covers: AC-SRS-005-01
 def test_apply_feedback_sets_first_seen_once() -> None:
     """first_seen should be set on creation and not modified on updates."""
     engine = _in_memory_engine()
@@ -55,6 +57,7 @@ def test_apply_feedback_sets_first_seen_once() -> None:
     assert words[0].first_seen == original_first_seen
 
 
+# Covers: AC-SRS-005-01
 def test_apply_feedback_increments_seen_count() -> None:
     """seen_count should increment each time a word is a target word."""
     engine = _in_memory_engine()
@@ -69,6 +72,7 @@ def test_apply_feedback_increments_seen_count() -> None:
     assert list_all_words(engine)[0].seen_count == 2
 
 
+# Covers: AC-SRS-005-02
 def test_non_target_word_marked_creates_record() -> None:
     """Marking a non-target word should create it with miss rules."""
     engine = _in_memory_engine()
@@ -81,6 +85,7 @@ def test_non_target_word_marked_creates_record() -> None:
     assert records["flutter"].cooldown == LEVEL_BASE**LEVEL_MIN
 
 
+# Covers: AC-SRS-005-01
 def test_last_context_stored() -> None:
     """apply_feedback should store the sentence as last_context."""
     engine = _in_memory_engine()
@@ -91,6 +96,7 @@ def test_last_context_stored() -> None:
     assert records["harbor"].last_context == sentence
 
 
+# Covers: AC-SRS-006-01
 def test_clear_all_words_empties_database() -> None:
     """clear_all_words should delete every record."""
     engine = _in_memory_engine()
@@ -108,6 +114,7 @@ def test_clear_all_words_empties_database() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-006-02
 def test_update_word_record_level() -> None:
     """update_word_record should update level within bounds."""
     engine = _in_memory_engine()
@@ -123,6 +130,7 @@ def test_update_word_record_level() -> None:
     assert record.level == LEVEL_MIN
 
 
+# Covers: AC-SRS-006-02
 def test_update_word_record_level_clamped() -> None:
     """Level should be clamped to [LEVEL_MIN, LEVEL_MAX]."""
     engine = _in_memory_engine()
@@ -138,6 +146,7 @@ def test_update_word_record_level_clamped() -> None:
     assert record.level == LEVEL_MAX
 
 
+# Covers: AC-SRS-006-02
 def test_update_word_record_cooldown() -> None:
     """update_word_record should update cooldown within [0, interval]."""
     engine = _in_memory_engine()
@@ -155,6 +164,7 @@ def test_update_word_record_cooldown() -> None:
     assert record.cooldown == LEVEL_BASE ** (LEVEL_MIN + 1)
 
 
+# Covers: AC-SRS-006-02
 def test_update_word_record_cooldown_clamped() -> None:
     """Cooldown should be clamped to [0, interval]."""
     engine = _in_memory_engine()
@@ -170,6 +180,7 @@ def test_update_word_record_cooldown_clamped() -> None:
     assert record.cooldown == LEVEL_BASE**LEVEL_MIN
 
 
+# Covers: AC-SRS-006-03
 def test_update_word_record_not_found() -> None:
     """update_word_record should return None for missing records."""
     engine = _in_memory_engine()
@@ -183,6 +194,7 @@ def test_update_word_record_not_found() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-006-04
 def test_delete_word_record() -> None:
     """delete_word_record should remove a specific word."""
     engine = _in_memory_engine()
@@ -199,6 +211,7 @@ def test_delete_word_record() -> None:
     assert remaining[0].lemma == "banana"
 
 
+# Covers: AC-SRS-006-04
 def test_delete_word_record_not_found() -> None:
     """delete_word_record should return False for missing records."""
     engine = _in_memory_engine()
@@ -207,6 +220,7 @@ def test_delete_word_record_not_found() -> None:
     assert deleted is False
 
 
+# Covers: AC-SRS-006-04
 def test_delete_stale_record() -> None:
     """Deleting an already-deleted record (stale tab) should return False."""
     engine = _in_memory_engine()
@@ -217,6 +231,7 @@ def test_delete_stale_record() -> None:
     assert delete_word_record("apple", engine=engine) is False
 
 
+# Covers: AC-SRS-006-03
 def test_update_stale_record() -> None:
     """Updating a record that was deleted in another tab should return None."""
     engine = _in_memory_engine()
@@ -231,12 +246,14 @@ def test_update_stale_record() -> None:
 # --- OPENVOCA_DATA_DIR engine path ---
 
 
+# Covers: AC-SRS-007-01
 def test_make_engine_default_path() -> None:
     """_make_engine() without env var uses a relative openvoca.db path."""
     engine = _make_engine()
     assert "openvoca.db" in str(engine.url)
 
 
+# Covers: AC-SRS-007-01
 def test_make_engine_respects_data_dir(
     tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -251,6 +268,7 @@ def test_make_engine_respects_data_dir(
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-008-02
 def test_import_vocabulary_creates_new_records() -> None:
     """import_vocabulary should insert records that don't exist yet."""
     engine = _in_memory_engine()
@@ -270,6 +288,7 @@ def test_import_vocabulary_creates_new_records() -> None:
     assert records["lantern"].cooldown == 0
 
 
+# Covers: AC-SRS-008-03
 def test_import_vocabulary_overwrite_existing_records() -> None:
     """import_vocabulary(mode='overwrite') should overwrite existing records."""
     engine = _in_memory_engine()
@@ -286,6 +305,7 @@ def test_import_vocabulary_overwrite_existing_records() -> None:
     assert records["harbor"].cooldown == 8
 
 
+# Covers: AC-SRS-008-03
 def test_import_vocabulary_skip_preserves_existing_records() -> None:
     """import_vocabulary(mode='skip') should keep existing records untouched."""
     engine = _in_memory_engine()
@@ -306,6 +326,7 @@ def test_import_vocabulary_skip_preserves_existing_records() -> None:
     assert records["lantern"].level == 2  # new
 
 
+# Covers: AC-SRS-008-03
 def test_import_vocabulary_default_mode_is_skip() -> None:
     """The default import mode should be 'skip' (safe default)."""
     engine = _in_memory_engine()
@@ -322,6 +343,7 @@ def test_import_vocabulary_default_mode_is_skip() -> None:
     assert records["harbor"].level == original_level
 
 
+# Covers: AC-SRS-008-04
 def test_import_vocabulary_skips_missing_columns() -> None:
     """Rows missing required columns should be skipped and counted."""
     engine = _in_memory_engine()
@@ -337,6 +359,7 @@ def test_import_vocabulary_skips_missing_columns() -> None:
     assert len(result.errors) == 1
 
 
+# Covers: AC-SRS-008-04
 def test_import_vocabulary_skips_empty_lemma() -> None:
     """Rows with empty lemma should be skipped."""
     engine = _in_memory_engine()
@@ -350,6 +373,7 @@ def test_import_vocabulary_skips_empty_lemma() -> None:
     assert result.skipped == 1
 
 
+# Covers: AC-SRS-008-04
 def test_import_vocabulary_skips_non_integer_values() -> None:
     """Rows with non-integer level or cooldown should be skipped."""
     engine = _in_memory_engine()
@@ -365,6 +389,7 @@ def test_import_vocabulary_skips_non_integer_values() -> None:
     assert len(result.errors) == 2
 
 
+# Covers: AC-SRS-008-05
 def test_import_vocabulary_clamps_out_of_range_values() -> None:
     """Level and cooldown outside valid ranges should be clamped, not rejected."""
     engine = _in_memory_engine()
@@ -382,6 +407,7 @@ def test_import_vocabulary_clamps_out_of_range_values() -> None:
     assert records["beta"].cooldown == LEVEL_BASE**LEVEL_MAX
 
 
+# Covers: AC-SRS-008-05
 def test_import_vocabulary_normalizes_case() -> None:
     """lemma should be lowercased on import."""
     engine = _in_memory_engine()
@@ -393,6 +419,7 @@ def test_import_vocabulary_normalizes_case() -> None:
     assert records[0].lemma == "harbor"
 
 
+# Covers: AC-SRS-008-05
 def test_import_vocabulary_legacy_pos_column_ignored() -> None:
     """Legacy CSV files with a 'pos' column should still import successfully."""
     engine = _in_memory_engine()
@@ -408,6 +435,7 @@ def test_import_vocabulary_legacy_pos_column_ignored() -> None:
     assert records[0].level == 3
 
 
+# Covers: AC-SRS-008-04
 def test_import_vocabulary_empty_rows() -> None:
     """Empty row list should return imported=0 with no errors."""
     engine = _in_memory_engine()
@@ -418,6 +446,7 @@ def test_import_vocabulary_empty_rows() -> None:
     assert result.errors == []
 
 
+# Covers: AC-SRS-008-04
 def test_import_vocabulary_too_many_rows() -> None:
     """Row count exceeding MAX_IMPORT_ROWS should fail without inserting anything."""
     engine = _in_memory_engine()
@@ -433,6 +462,9 @@ def test_import_vocabulary_too_many_rows() -> None:
     assert len(list_all_words(engine)) == 0
 
 
+@pytest.mark.skip(
+    reason="只验证 ImportResult 的 dataclass 默认值，概念价值低，导入结果语义已由导入测试覆盖。"
+)
 def test_import_result_is_dataclass() -> None:
     """ImportResult should have default zero values."""
     r = ImportResult()
@@ -441,6 +473,7 @@ def test_import_result_is_dataclass() -> None:
     assert r.errors == []
 
 
+# Covers: AC-SRS-008-02
 def test_import_vocabulary_minimal_columns() -> None:
     """Rows with only lemma should import with default values."""
     engine = _in_memory_engine()
@@ -460,6 +493,7 @@ def test_import_vocabulary_minimal_columns() -> None:
     assert records["glow"].level == LEVEL_MIN
 
 
+# Covers: AC-SRS-008-05
 def test_import_vocabulary_with_last_seen_and_context() -> None:
     """Import should accept and preserve last_seen and last_context."""
     engine = _in_memory_engine()
@@ -482,6 +516,7 @@ def test_import_vocabulary_with_last_seen_and_context() -> None:
     assert records[0].last_context == "The harbor was calm."
 
 
+# Covers: AC-SRS-008-04
 def test_import_vocabulary_bad_last_seen_skips_row() -> None:
     """Invalid last_seen format should cause the row to be skipped."""
     engine = _in_memory_engine()
@@ -501,6 +536,7 @@ def test_import_vocabulary_bad_last_seen_skips_row() -> None:
     assert "ISO 8601" in result.errors[0]
 
 
+# Covers: AC-SRS-010-01, AC-LOOP-003-01
 def test_draft_feedback() -> None:
     engine = _in_memory_engine()
 

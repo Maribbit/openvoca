@@ -34,21 +34,25 @@ def _in_memory_engine():
 
 
 class TestSettingsStore:
+    # Covers: AC-SET-001-01
     def test_upsert_and_get_single_setting(self):
         engine = _in_memory_engine()
         upsert_setting("interface", "locale", "en", engine=engine)
         assert get_setting("interface", "locale", engine=engine) == "en"
 
+    # Covers: AC-SET-001-01
     def test_get_missing_setting_returns_none(self):
         engine = _in_memory_engine()
         assert get_setting("interface", "locale", engine=engine) is None
 
+    # Covers: AC-SET-001-01
     def test_upsert_overwrites_existing(self):
         engine = _in_memory_engine()
         upsert_setting("interface", "locale", "en", engine=engine)
         upsert_setting("interface", "locale", "zh", engine=engine)
         assert get_setting("interface", "locale", engine=engine) == "zh"
 
+    # Covers: AC-SET-001-02
     def test_get_namespace_returns_all_keys(self):
         engine = _in_memory_engine()
         upsert_setting("interface", "locale", "en", engine=engine)
@@ -57,10 +61,12 @@ class TestSettingsStore:
         ns = get_namespace("interface", engine=engine)
         assert ns == {"locale": "en", "theme": "dark"}
 
+    # Covers: AC-SET-001-02
     def test_get_namespace_empty(self):
         engine = _in_memory_engine()
         assert get_namespace("interface", engine=engine) == {}
 
+    # Covers: AC-SET-001-02
     def test_get_all_settings_grouped(self):
         engine = _in_memory_engine()
         upsert_setting("interface", "locale", "en", engine=engine)
@@ -71,6 +77,7 @@ class TestSettingsStore:
             "reading": {"theme": "dark"},
         }
 
+    # Covers: AC-SET-001-02
     def test_upsert_namespace_batch(self):
         engine = _in_memory_engine()
         upsert_namespace(
@@ -81,6 +88,7 @@ class TestSettingsStore:
         ns = get_namespace("interface", engine=engine)
         assert ns == {"locale": "en", "theme": "light", "fontSize": "md"}
 
+    # Covers: AC-SET-001-02
     def test_upsert_namespace_updates_existing(self):
         engine = _in_memory_engine()
         upsert_setting("interface", "locale", "en", engine=engine)
@@ -88,6 +96,7 @@ class TestSettingsStore:
         ns = get_namespace("interface", engine=engine)
         assert ns == {"locale": "zh", "theme": "dark"}
 
+    # Covers: AC-SET-001-03
     def test_delete_namespace(self):
         engine = _in_memory_engine()
         upsert_setting("interface", "locale", "en", engine=engine)
@@ -98,11 +107,13 @@ class TestSettingsStore:
         assert get_namespace("interface", engine=engine) == {}
         assert get_namespace("reading", engine=engine) == {"fontSize": "lg"}
 
+    # Covers: AC-SET-001-03
     def test_delete_empty_namespace(self):
         engine = _in_memory_engine()
         count = delete_namespace("nonexistent", engine=engine)
         assert count == 0
 
+    # Covers: AC-SET-001-03
     def test_clear_all_settings(self):
         engine = _in_memory_engine()
         upsert_setting("interface", "locale", "en", engine=engine)
@@ -112,6 +123,7 @@ class TestSettingsStore:
         assert count == 3
         assert get_all_settings(engine=engine) == {}
 
+    # Covers: AC-SET-001-03
     def test_clear_all_settings_empty(self):
         engine = _in_memory_engine()
         count = clear_all_settings(engine=engine)
@@ -128,6 +140,7 @@ def _patch_engine(monkeypatch):
     return engine
 
 
+# Covers: AC-SET-001-04
 def test_api_get_all_settings_empty(monkeypatch):
     _patch_engine(monkeypatch)
     response = client.get("/api/settings")
@@ -135,6 +148,7 @@ def test_api_get_all_settings_empty(monkeypatch):
     assert response.json() == {}
 
 
+# Covers: AC-SET-001-04
 def test_api_put_and_get_single_setting(monkeypatch):
     _patch_engine(monkeypatch)
     response = client.put(
@@ -148,6 +162,7 @@ def test_api_put_and_get_single_setting(monkeypatch):
     assert response.json() == {"locale": "en"}
 
 
+# Covers: AC-SET-001-04
 def test_api_put_namespace_batch(monkeypatch):
     _patch_engine(monkeypatch)
     response = client.put(
@@ -160,6 +175,7 @@ def test_api_put_namespace_batch(monkeypatch):
     assert response.json() == {"locale": "zh", "theme": "dark"}
 
 
+# Covers: AC-SET-001-04
 def test_api_get_all_settings_grouped(monkeypatch):
     _patch_engine(monkeypatch)
     client.put("/api/settings/interface/locale", json={"value": "en"})
@@ -172,6 +188,7 @@ def test_api_get_all_settings_grouped(monkeypatch):
     }
 
 
+# Covers: AC-SET-001-04
 def test_api_put_setting_rejects_empty_value(monkeypatch):
     _patch_engine(monkeypatch)
     response = client.put(
@@ -181,6 +198,7 @@ def test_api_put_setting_rejects_empty_value(monkeypatch):
     assert response.status_code == 422
 
 
+# Covers: AC-SET-001-04
 def test_api_delete_all_settings(monkeypatch):
     _patch_engine(monkeypatch)
     client.put("/api/settings/interface/locale", json={"value": "en"})
@@ -195,6 +213,7 @@ def test_api_delete_all_settings(monkeypatch):
     assert response.json() == {}
 
 
+# Covers: AC-SET-001-04
 def test_api_delete_all_settings_empty(monkeypatch):
     _patch_engine(monkeypatch)
     response = client.delete("/api/settings")

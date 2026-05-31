@@ -21,6 +21,7 @@ from conftest import _in_memory_engine
 client = TestClient(app)
 
 
+# Covers: AC-SHELL-001-01
 def test_health_endpoint():
     """Health check endpoint returns status ok."""
     response = client.get("/api/health")
@@ -31,6 +32,7 @@ def test_health_endpoint():
     }
 
 
+# Covers: AC-GEN-002-01, AC-TOK-001-01, AC-TOK-001-02
 def test_reading_sentence_endpoint_returns_pos_tags(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -79,6 +81,7 @@ def test_reading_sentence_endpoint_returns_pos_tags(
     assert dot_tok["pos"] is None
 
 
+# Covers: AC-LOOP-004-01
 def test_reading_sentence_endpoint_returns_riddle_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -126,6 +129,7 @@ def test_reading_sentence_endpoint_returns_riddle_payload(
     assert any(t["text"] == "lantern" and t["isTarget"] is True for t in answer_tokens)
 
 
+# Covers: AC-LOOP-004-01, AC-LOOP-005-01
 def test_stream_reading_sentence_endpoint_accepts_fenced_riddle_json(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -172,6 +176,7 @@ def test_stream_reading_sentence_endpoint_accepts_fenced_riddle_json(
     assert data["riddle"]["answer"] == "a *harbor* *lantern*"
 
 
+# Covers: AC-LOOP-004-03
 def test_reading_sentence_endpoint_rejects_invalid_riddle_json(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -200,6 +205,7 @@ def test_reading_sentence_endpoint_rejects_invalid_riddle_json(
     assert response.status_code == 502
 
 
+# Covers: AC-LOOP-002-01
 def test_target_words_endpoint_picks_from_vocabulary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -218,6 +224,7 @@ def test_target_words_endpoint_picks_from_vocabulary(
     assert "meadow" in data["words"]
 
 
+# Covers: AC-SRS-006-01
 def test_delete_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     """DELETE /api/vocabulary should clear all records and return the count."""
     engine = _in_memory_engine()
@@ -232,6 +239,7 @@ def test_delete_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(list_all_words(engine)) == 0
 
 
+# Covers: AC-GEN-002-03, AC-LOOP-005-02
 def test_reading_sentence_returns_502_on_ollama_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -259,6 +267,7 @@ def test_reading_sentence_returns_502_on_ollama_failure(
     assert response.status_code == 502
 
 
+# Covers: AC-LOOP-003-02, AC-SRS-001-01
 def test_feedback_via_api(monkeypatch: pytest.MonkeyPatch) -> None:
     """The /api/feedback endpoint should accept lemma strings."""
     engine = _in_memory_engine()
@@ -279,6 +288,7 @@ def test_feedback_via_api(monkeypatch: pytest.MonkeyPatch) -> None:
     assert records["glow"] == LEVEL_MIN + 1  # hit
 
 
+# Covers: AC-SRS-009-01
 def test_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     """The /api/vocabulary endpoint should include level in the response."""
     engine = _in_memory_engine()
@@ -297,6 +307,7 @@ def test_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     assert word_data["cooldown"] == LEVEL_BASE ** (LEVEL_MIN + 1)
 
 
+# Covers: AC-GEN-002-02
 def test_next_endpoint_ticks_cooldowns(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -332,6 +343,7 @@ def test_next_endpoint_ticks_cooldowns(
     assert records["harbor"].cooldown == 0
 
 
+# Covers: AC-LOOP-002-02, AC-GEN-002-02
 def test_target_words_endpoint_does_not_tick(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -358,6 +370,7 @@ def test_target_words_endpoint_does_not_tick(
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-GEN-001-04, AC-GEN-002-01
 def test_next_endpoint_accepts_full_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -392,6 +405,7 @@ def test_next_endpoint_accepts_full_prompt(
     assert "sunset" in prompt
 
 
+# Covers: AC-GEN-002-01
 def test_next_endpoint_works_with_minimal_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -424,6 +438,7 @@ def test_next_endpoint_works_with_minimal_prompt(
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-008-01
 def test_export_vocabulary_csv(monkeypatch: pytest.MonkeyPatch) -> None:
     """GET /api/vocabulary/export should return a CSV with the correct headers and data."""
     engine = _in_memory_engine()
@@ -445,6 +460,7 @@ def test_export_vocabulary_csv(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(lines) == 3  # header + 2 words
 
 
+# Covers: AC-SRS-008-01
 def test_export_vocabulary_csv_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     """GET /api/vocabulary/export should return a CSV with only headers when vocabulary is empty."""
     engine = _in_memory_engine()
@@ -458,6 +474,7 @@ def test_export_vocabulary_csv_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     ]
 
 
+# Covers: AC-SRS-006-02
 def test_patch_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
     """PATCH /api/vocabulary/{lemma} should update level and cooldown."""
     engine = _in_memory_engine()
@@ -475,6 +492,7 @@ def test_patch_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
     assert data["cooldown"] == 0
 
 
+# Covers: AC-SRS-006-03
 def test_patch_vocabulary_word_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
     """PATCH should return 404 for unknown words."""
     engine = _in_memory_engine()
@@ -487,6 +505,7 @@ def test_patch_vocabulary_word_not_found(monkeypatch: pytest.MonkeyPatch) -> Non
     assert response.status_code == 404
 
 
+# Covers: AC-SRS-006-04
 def test_delete_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
     """DELETE /api/vocabulary/{lemma} should delete a single word."""
     engine = _in_memory_engine()
@@ -501,6 +520,7 @@ def test_delete_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(list_all_words(engine)) == 1
 
 
+# Covers: AC-SRS-006-04
 def test_delete_vocabulary_word_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
     """DELETE should return 404 for unknown words."""
     engine = _in_memory_engine()
@@ -510,6 +530,7 @@ def test_delete_vocabulary_word_not_found(monkeypatch: pytest.MonkeyPatch) -> No
     assert response.status_code == 404
 
 
+# Covers: AC-SRS-006-03
 def test_delete_then_patch_stale(monkeypatch: pytest.MonkeyPatch) -> None:
     """PATCH after DELETE on same word (stale tab) should return 404."""
     engine = _in_memory_engine()
@@ -527,6 +548,7 @@ def test_delete_then_patch_stale(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.status_code == 404
 
 
+# Covers: AC-SRS-009-02
 def test_vocabulary_sort_due(monkeypatch: pytest.MonkeyPatch) -> None:
     """GET /api/vocabulary?sort=due returns words by cooldown ASC, level ASC."""
     engine = _in_memory_engine()
@@ -542,6 +564,7 @@ def test_vocabulary_sort_due(monkeypatch: pytest.MonkeyPatch) -> None:
     assert lemmas == ["alpha", "beta"]
 
 
+# Covers: AC-SRS-009-02
 def test_vocabulary_sort_familiarity(monkeypatch: pytest.MonkeyPatch) -> None:
     """GET /api/vocabulary?sort=familiarity returns words by level ASC, cooldown ASC."""
     engine = _in_memory_engine()
@@ -557,6 +580,7 @@ def test_vocabulary_sort_familiarity(monkeypatch: pytest.MonkeyPatch) -> None:
     assert lemmas == ["hard", "easy"]
 
 
+# Covers: AC-SRS-009-02
 def test_vocabulary_sort_recent(monkeypatch: pytest.MonkeyPatch) -> None:
     """GET /api/vocabulary?sort=recent returns words by last_seen DESC."""
     engine = _in_memory_engine()
@@ -572,6 +596,7 @@ def test_vocabulary_sort_recent(monkeypatch: pytest.MonkeyPatch) -> None:
     assert lemmas == ["second", "first"]
 
 
+# Covers: AC-SRS-009-02
 def test_vocabulary_sort_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
     """GET /api/vocabulary?sort=invalid returns 422."""
     engine = _in_memory_engine()
@@ -581,6 +606,7 @@ def test_vocabulary_sort_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.status_code == 422
 
 
+# Covers: AC-SRS-009-01
 def test_vocabulary_includes_last_seen(monkeypatch: pytest.MonkeyPatch) -> None:
     """GET /api/vocabulary response includes lastSeen field."""
     engine = _in_memory_engine()
@@ -600,6 +626,7 @@ def test_vocabulary_includes_last_seen(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-008-02
 def test_import_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     """POST /api/vocabulary/import should accept a CSV and return import summary."""
     engine = _in_memory_engine()
@@ -621,6 +648,7 @@ def test_import_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     assert records["lantern"].level == 2
 
 
+# Covers: AC-SRS-008-03
 def test_import_vocabulary_endpoint_upserts_existing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -644,6 +672,7 @@ def test_import_vocabulary_endpoint_upserts_existing(
     assert records["harbor"].cooldown == 16
 
 
+# Covers: AC-SRS-008-04
 def test_import_vocabulary_endpoint_skips_invalid_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -664,6 +693,7 @@ def test_import_vocabulary_endpoint_skips_invalid_rows(
     assert len(data["errors"]) == 1
 
 
+# Covers: AC-SRS-008-04
 def test_import_vocabulary_endpoint_file_too_large(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -680,6 +710,7 @@ def test_import_vocabulary_endpoint_file_too_large(
     assert response.status_code == 413
 
 
+# Covers: AC-SRS-008-04
 def test_import_vocabulary_endpoint_non_utf8(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -696,6 +727,7 @@ def test_import_vocabulary_endpoint_non_utf8(
     assert response.status_code == 422
 
 
+# Covers: AC-SRS-008-06
 def test_export_import_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exported CSV should be importable without any data loss."""
     engine = _in_memory_engine()
@@ -742,6 +774,7 @@ def test_export_import_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
         )
 
 
+# Covers: AC-SRS-008-03
 def test_import_vocabulary_endpoint_skip_mode(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -767,6 +800,7 @@ def test_import_vocabulary_endpoint_skip_mode(
     assert records["lantern"].level == 2
 
 
+# Covers: AC-SRS-008-02
 def test_import_vocabulary_endpoint_minimal_csv(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -786,6 +820,7 @@ def test_import_vocabulary_endpoint_minimal_csv(
     assert data["skipped"] == 0
 
 
+# Covers: AC-SRS-008-05
 def test_import_vocabulary_legacy_pos_csv(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -805,6 +840,7 @@ def test_import_vocabulary_legacy_pos_csv(
     assert data["skipped"] == 0
 
 
+# Covers: AC-SRS-008-05
 def test_import_vocabulary_endpoint_bom_csv(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

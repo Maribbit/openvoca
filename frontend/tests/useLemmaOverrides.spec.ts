@@ -15,6 +15,7 @@ const token: ReadingSentenceToken = {
 };
 
 describe("useLemmaOverrides", () => {
+  // Covers: AC-TOK-005-01
   it("normalizes and validates lemma input", () => {
     expect(normalizeLemmaInput("  Running\u2019s ")).toBe("running's");
     expect(isValidLemmaInput("well-known")).toBe(true);
@@ -25,6 +26,7 @@ describe("useLemmaOverrides", () => {
     expect(isValidLemmaInput("123")).toBe(false);
   });
 
+  // Covers: AC-TOK-005-02
   it("resolves current-sentence overrides without persistence", () => {
     const overrides = useLemmaOverrides();
 
@@ -39,6 +41,7 @@ describe("useLemmaOverrides", () => {
     expect(overrides.effectiveLemma(token)).toBe("analysis");
   });
 
+  // Covers: AC-TOK-005-02, AC-LOOP-003-03
   it("supports chained row edits from the progress modal", () => {
     const overrides = useLemmaOverrides();
 

@@ -218,6 +218,7 @@ describe("HomeView.vue", () => {
     await flushPromises();
   }
 
+  // Covers: AC-LOOP-001-01, AC-LOOP-001-02, AC-LOOP-006-01
   it("renders the generated reading sentence", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
@@ -272,6 +273,7 @@ describe("HomeView.vue", () => {
     expect(wrapper.text()).toContain("Review Progress");
   });
 
+  // Covers: AC-LOOP-004-01
   it("reveals riddle answers before progress review", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
@@ -319,6 +321,7 @@ describe("HomeView.vue", () => {
     expect(wrapper.text()).toContain("Review Progress");
   });
 
+  // Covers: AC-LOOP-004-02
   it("builds concise English riddle prompts from a scene and custom details", async () => {
     window.localStorage.setItem(
       "openvoca.settings.cache",
@@ -381,6 +384,7 @@ describe("HomeView.vue", () => {
     expect(body.prompt).not.toContain("[Focus]");
   });
 
+  // Covers: AC-LOOP-004-03, AC-LOOP-005-02
   it("shows stream generation error details in the composer", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
@@ -417,6 +421,7 @@ describe("HomeView.vue", () => {
     expect(wrapper.text()).not.toContain("Unable to reach the model");
   });
 
+  // Covers: AC-LOOP-003-01, AC-LOOP-003-02
   it("opens progress summary on continue and advances on submit", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
@@ -508,6 +513,7 @@ describe("HomeView.vue", () => {
     expect(wrapper.text()).toContain("Generate");
   });
 
+  // Covers: AC-SET-002-03
   it("switches UI language to Chinese and persists locale", async () => {
     vi.stubGlobal("fetch", mockFetch());
 
@@ -535,6 +541,7 @@ describe("HomeView.vue", () => {
     expect(cache?.interface?.locale).toBe("zh");
   });
 
+  // Covers: AC-SET-003-01
   it("applies and persists dark reading theme from inline settings", async () => {
     vi.stubGlobal("fetch", mockFetch());
 
@@ -568,6 +575,7 @@ describe("HomeView.vue", () => {
     expect(parsed.reading?.theme).toBe("dark");
   });
 
+  // Covers: AC-SET-003-02
   it("closes inline settings when clicking the blank overlay", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
@@ -600,6 +608,7 @@ describe("HomeView.vue", () => {
     ).toBe(false);
   });
 
+  // Covers: AC-LOOP-005-01
   it("shows streaming word count progress during generation", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
@@ -664,6 +673,7 @@ describe("HomeView.vue", () => {
     );
   });
 
+  // Covers: AC-LOOP-006-02
   it("plays TTS audio from backend when read aloud is clicked", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
@@ -709,6 +719,7 @@ describe("HomeView.vue", () => {
     expect(audioSrc).toContain("/api/tts?text=");
   });
 
+  // Covers: AC-LOOP-003-03, AC-TOK-005-02
   it("uses corrected lemmas for draft and submit", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 

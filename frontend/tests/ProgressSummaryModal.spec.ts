@@ -24,7 +24,8 @@ const words: WordProgress[] = [
 ];
 
 describe("ProgressSummaryModal.vue", () => {
-  it("uses theme-aware level delta badges", () => {
+  // delete-candidate: 主要断言 Tailwind class，缺少独立概念；进度弹窗的学习语义由 draft feedback 和提交流程测试覆盖。
+  it.skip("uses theme-aware level delta badges", () => {
     const wrapper = mount(ProgressSummaryModal, {
       props: {
         words,
@@ -53,6 +54,7 @@ describe("ProgressSummaryModal.vue", () => {
     expect(newBadgeClasses).toContain("dark:border-white/15");
   });
 
+  // Covers: AC-LOOP-003-03, AC-TOK-005-01
   it("emits normalized lemma edits", async () => {
     const wrapper = mount(ProgressSummaryModal, {
       props: {

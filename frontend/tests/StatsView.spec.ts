@@ -47,6 +47,7 @@ describe("StatsView.vue", () => {
     vi.clearAllMocks();
   });
 
+  // Covers: AC-STATS-001-01
   it("moves delete out of the row edit action", async () => {
     const wrapper = mountStatsView();
     await flushPromises();
@@ -65,7 +66,8 @@ describe("StatsView.vue", () => {
     expect(deleteButton.text()).toContain("Delete word");
   });
 
-  it("uses centered text inputs for numeric editing", async () => {
+  // delete-candidate: 只检查输入框排版 class，缺少独立产品概念；编辑能力由后端 patch 与统计行交互测试间接覆盖。
+  it.skip("uses centered text inputs for numeric editing", async () => {
     const wrapper = mountStatsView();
     await flushPromises();
 

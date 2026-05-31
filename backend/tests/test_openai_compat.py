@@ -6,6 +6,7 @@ from src.integrations.provider import LLMProvider
 
 
 @pytest.mark.anyio
+# Covers: AC-GEN-003-01
 async def test_openai_compatible_client_returns_sentence() -> None:
     """The OpenAI-compatible client should extract text from chat completions."""
 
@@ -35,6 +36,7 @@ async def test_openai_compatible_client_returns_sentence() -> None:
 
 
 @pytest.mark.anyio
+# Covers: AC-GEN-003-02
 async def test_openai_compatible_client_rejects_empty_response() -> None:
     """Should raise ValueError when the API returns no choices."""
 
@@ -52,6 +54,7 @@ async def test_openai_compatible_client_rejects_empty_response() -> None:
         await client_obj.generate_completion("test prompt")
 
 
+# Covers: AC-GEN-003-03
 def test_openai_compatible_client_satisfies_provider_protocol() -> None:
     """OpenAICompatibleClient must be a structural subtype of LLMProvider."""
     assert isinstance(
@@ -65,6 +68,7 @@ def test_openai_compatible_client_satisfies_provider_protocol() -> None:
 
 
 @pytest.mark.anyio
+# Covers: AC-GEN-003-03
 async def test_openai_compatible_client_reuses_connection() -> None:
     """The persistent client should handle multiple calls without recreating."""
     call_count = 0
@@ -95,6 +99,7 @@ async def test_openai_compatible_client_reuses_connection() -> None:
 
 
 @pytest.mark.anyio
+# Covers: AC-GEN-003-04
 async def test_openai_compatible_client_aclose() -> None:
     """aclose() should cleanly shut down the HTTP client."""
     transport = httpx.MockTransport(
@@ -112,6 +117,7 @@ async def test_openai_compatible_client_aclose() -> None:
 
 
 @pytest.mark.anyio
+# Covers: AC-GEN-003-05
 async def test_openai_compatible_client_streams_chunks() -> None:
     """generate_completion_stream should yield content deltas from SSE chunks."""
 

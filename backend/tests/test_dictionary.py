@@ -24,6 +24,7 @@ def _skip_if_no_dict():
 
 
 @pytest.mark.usefixtures("_skip_if_no_dict")
+# Covers: AC-DICT-001-01
 def test_lookup_known_word() -> None:
     """lookup should return an entry for a common word."""
     entry = lookup("apple")
@@ -34,6 +35,7 @@ def test_lookup_known_word() -> None:
 
 
 @pytest.mark.usefixtures("_skip_if_no_dict")
+# Covers: AC-DICT-001-01
 def test_lookup_case_insensitive() -> None:
     """lookup should be case-insensitive."""
     entry = lookup("APPLE")
@@ -42,6 +44,7 @@ def test_lookup_case_insensitive() -> None:
 
 
 @pytest.mark.usefixtures("_skip_if_no_dict")
+# Covers: AC-DICT-001-01
 def test_lookup_unknown_word() -> None:
     """lookup should return None for words not in the dictionary."""
     entry = lookup("xyzzynotaword")
@@ -87,6 +90,7 @@ def tmp_dict_db(tmp_path: Path) -> Path:
     return db_path
 
 
+# Covers: AC-DICT-001-02
 def test_lookup_custom_found(tmp_dict_db: Path) -> None:
     """lookup_custom should find a word in a custom database."""
     entry = lookup_custom("harbor", tmp_dict_db)
@@ -97,6 +101,7 @@ def test_lookup_custom_found(tmp_dict_db: Path) -> None:
     assert entry.tag == "cet4"
 
 
+# Covers: AC-DICT-001-02
 def test_lookup_custom_not_found(tmp_dict_db: Path) -> None:
     """lookup_custom should return None for missing words."""
     entry = lookup_custom("zzzz", tmp_dict_db)
@@ -109,6 +114,7 @@ def test_lookup_custom_not_found(tmp_dict_db: Path) -> None:
 
 
 @pytest.mark.usefixtures("_skip_if_no_dict")
+# Covers: AC-DICT-001-03
 def test_api_dictionary_found() -> None:
     """GET /api/dictionary/<word> should return definition for a known word."""
     response = client.get("/api/dictionary/abandon")
@@ -120,6 +126,7 @@ def test_api_dictionary_found() -> None:
 
 
 @pytest.mark.usefixtures("_skip_if_no_dict")
+# Covers: AC-DICT-001-03
 def test_api_dictionary_not_found() -> None:
     """GET /api/dictionary/<word> should return 404 for unknown words."""
     response = client.get("/api/dictionary/xyzzynotaword")

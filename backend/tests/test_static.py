@@ -4,6 +4,7 @@ import pytest
 from fastapi.responses import FileResponse
 
 
+# Covers: AC-SHELL-001-02
 def test_spa_fallback_returns_index_html(tmp_path: pytest.TempPathFactory) -> None:
     """spa_fallback() returns a FileResponse pointing at index.html."""
     dist = tmp_path / "dist"

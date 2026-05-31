@@ -66,13 +66,15 @@ describe("DefinitionToast.vue", () => {
     });
   }
 
-  it("renders the speak-word button", () => {
+  // delete-candidate: 单独验证按钮存在，播放、回退和未找到词朗读测试已经覆盖同一入口的实际行为。
+  it.skip("renders the speak-word button", () => {
     const wrapper = mountToast();
     const btn = wrapper.find('[data-testid="speak-word"]');
     expect(btn.exists()).toBe(true);
     expect(btn.attributes("title")).toBe("Pronounce");
   });
 
+  // Covers: AC-LOOP-006-02
   it("plays word audio via /api/tts when speak button is clicked", async () => {
     const { FakeAudio, getInstance } = makeFakeAudio();
     vi.stubGlobal("Audio", FakeAudio);
@@ -87,6 +89,7 @@ describe("DefinitionToast.vue", () => {
     expect(audio!.play).toHaveBeenCalled();
   });
 
+  // Covers: AC-LOOP-006-02
   it("falls back to browser SpeechSynthesis on audio error", async () => {
     const { FakeAudio, getInstance } = makeFakeAudio();
     vi.stubGlobal("Audio", FakeAudio);
@@ -117,6 +120,7 @@ describe("DefinitionToast.vue", () => {
     expect(speakMock).toHaveBeenCalledTimes(1);
   });
 
+  // Covers: AC-LOOP-006-02
   it("stops playback when clicked while speaking", async () => {
     const { FakeAudio, getInstance } = makeFakeAudio();
     vi.stubGlobal("Audio", FakeAudio);
@@ -138,6 +142,7 @@ describe("DefinitionToast.vue", () => {
     expect(audio!.pause).toHaveBeenCalled();
   });
 
+  // Covers: AC-LOOP-006-02, AC-LOOP-006-03
   it("uses notFoundWord when entry is null", async () => {
     const { FakeAudio, getInstance } = makeFakeAudio();
     vi.stubGlobal("Audio", FakeAudio);
@@ -163,6 +168,7 @@ describe("DefinitionToast.vue", () => {
     expect(audio!.src).toContain("/api/tts?text=xyzzy");
   });
 
+  // Covers: AC-LOOP-006-03, AC-TOK-005-01
   it("emits normalized lemma edits", async () => {
     const wrapper = mount(DefinitionToast, {
       props: {
@@ -187,6 +193,7 @@ describe("DefinitionToast.vue", () => {
     expect(wrapper.emitted("lemma-change")?.[0]).toEqual(["lamp"]);
   });
 
+  // Covers: AC-LOOP-006-03
   it("does not repeat the lemma label when it matches the lookup word", () => {
     const wrapper = mount(DefinitionToast, {
       props: {

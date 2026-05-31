@@ -23,6 +23,7 @@ describe("App.vue update banner", () => {
     vi.restoreAllMocks();
   });
 
+  // Covers: AC-SHELL-002-01
   it("shows banner when update is available", async () => {
     vi.useFakeTimers();
     vi.stubGlobal(
@@ -59,6 +60,7 @@ describe("App.vue update banner", () => {
     expect(wrapper.text()).toContain("0.10.0");
   });
 
+  // Covers: AC-SHELL-002-02
   it("hides banner when dismissed", async () => {
     vi.useFakeTimers();
     vi.stubGlobal(
@@ -96,6 +98,7 @@ describe("App.vue update banner", () => {
     expect(wrapper.find("[data-testid='update-banner']").exists()).toBe(false);
   });
 
+  // Covers: AC-SHELL-002-01
   it("does not show banner when no update is available", async () => {
     vi.useFakeTimers();
     vi.stubGlobal(
@@ -127,6 +130,7 @@ describe("App.vue update banner", () => {
     expect(wrapper.find("[data-testid='update-banner']").exists()).toBe(false);
   });
 
+  // Covers: AC-LOOP-001-03
   it("keeps the reading sentence when visiting another route", async () => {
     vi.useFakeTimers();
     let draftRequestCount = 0;
@@ -228,6 +232,7 @@ describe("App.vue update banner", () => {
     expect(wrapper.text()).not.toContain("Generate");
   });
 
+  // Covers: AC-SET-002-03
   it("updates cached reading copy when language changes in settings", async () => {
     vi.useFakeTimers();
     vi.stubGlobal(

@@ -16,6 +16,7 @@ describe("useSettings – exportAll / importAll", () => {
     settings._reset();
   });
 
+  // Covers: AC-SET-002-01
   it("exportAll excludes provider.apiKey", () => {
     settings.set("provider", {
       endpoint: "http://localhost:11434",
@@ -33,6 +34,7 @@ describe("useSettings – exportAll / importAll", () => {
     expect(exported.interface!.locale).toBe("en");
   });
 
+  // Covers: AC-SET-002-01
   it("exportAll omits namespace when only apiKey present", () => {
     settings.set("provider", { apiKey: "sk-only-key" });
 
@@ -41,6 +43,7 @@ describe("useSettings – exportAll / importAll", () => {
     expect(exported.provider).toBeUndefined();
   });
 
+  // Covers: AC-SET-002-02
   it("importAll merges settings and skips apiKey", async () => {
     settings.set("interface", { locale: "en", colorTheme: "default" });
 
@@ -59,6 +62,7 @@ describe("useSettings – exportAll / importAll", () => {
     expect(store.provider?.apiKey).toBeUndefined();
   });
 
+  // Covers: AC-SET-002-02
   it("importAll skips non-string values", async () => {
     await settings.importAll({
       reading: { theme: "dark", broken: 123 as unknown as string },
@@ -69,6 +73,7 @@ describe("useSettings – exportAll / importAll", () => {
     expect(store.reading?.broken).toBeUndefined();
   });
 
+  // Covers: AC-SET-002-02
   it("importAll skips non-object namespaces", async () => {
     await settings.importAll({
       bad: "not-an-object" as unknown as Record<string, string>,
@@ -81,6 +86,7 @@ describe("useSettings – exportAll / importAll", () => {
     expect(settings.store.reading?.theme).toBe("light");
   });
 
+  // Covers: AC-SET-002-02
   it("importAll handles empty object without error", async () => {
     settings.set("interface", { locale: "en" });
     await settings.importAll({});

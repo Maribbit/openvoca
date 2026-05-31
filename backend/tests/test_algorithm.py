@@ -19,6 +19,7 @@ from conftest import _in_memory_engine
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-001-01
 def test_apply_feedback_decreases_level_for_marked_words() -> None:
     """Marking a previously known word should decrement its level."""
     engine = _in_memory_engine()
@@ -35,6 +36,7 @@ def test_apply_feedback_decreases_level_for_marked_words() -> None:
     assert words["harbor"].level == LEVEL_MIN
 
 
+# Covers: AC-SRS-001-02
 def test_apply_feedback_caps_level_at_boundaries() -> None:
     """Level should never go below LEVEL_MIN or above LEVEL_MAX."""
     engine = _in_memory_engine()
@@ -56,6 +58,7 @@ def test_apply_feedback_caps_level_at_boundaries() -> None:
     assert words["resolve"].level == LEVEL_MIN
 
 
+# Covers: AC-SRS-001-03
 def test_graduated_word_relapse_on_mark() -> None:
     """Marking a graduated word (level=MAX) should bring it back into review."""
     engine = _in_memory_engine()
@@ -80,6 +83,7 @@ def test_graduated_word_relapse_on_mark() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-002-01
 def test_tick_cooldowns_decrements() -> None:
     """tick_cooldowns should decrement cooldown by 1 for all words with cooldown > 0."""
     engine = _in_memory_engine()
@@ -93,6 +97,7 @@ def test_tick_cooldowns_decrements() -> None:
     assert records["apple"].cooldown == LEVEL_BASE**LEVEL_MIN - 1
 
 
+# Covers: AC-SRS-002-02
 def test_tick_cooldowns_does_not_go_below_zero() -> None:
     """tick_cooldowns should not decrement cooldown below 0."""
     engine = _in_memory_engine()
@@ -104,6 +109,7 @@ def test_tick_cooldowns_does_not_go_below_zero() -> None:
     assert records["apple"].cooldown == 0
 
 
+# Covers: AC-SRS-002-02
 def test_cooldown_words_not_picked() -> None:
     """Words with cooldown > 0 should not be picked."""
     engine = _in_memory_engine()
@@ -113,6 +119,7 @@ def test_cooldown_words_not_picked() -> None:
     assert picked == []
 
 
+# Covers: AC-SRS-002-03
 def test_graduated_words_not_picked() -> None:
     """Words with level >= LEVEL_MAX should not be picked."""
     engine = _in_memory_engine()
@@ -133,6 +140,7 @@ def test_graduated_words_not_picked() -> None:
     assert "apple" not in picked
 
 
+# Covers: AC-SRS-002-04
 def test_pick_target_words_returns_lowest_level() -> None:
     """pick_target_words should return words with lowest level first."""
     engine = _in_memory_engine()
@@ -161,6 +169,7 @@ def test_pick_target_words_returns_lowest_level() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-003-01
 def test_full_round_simulation() -> None:
     """Simulate a complete 3-round scenario from Algorithm.md."""
     engine = _in_memory_engine()
@@ -210,6 +219,7 @@ def test_full_round_simulation() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Covers: AC-SRS-004-01
 def test_original_targets_advances_unmatched_word() -> None:
     """original_targets should advance a word even when the tokenizer didn't match it."""
     engine = _in_memory_engine()
@@ -233,6 +243,7 @@ def test_original_targets_advances_unmatched_word() -> None:
     assert records["analyze"].level == LEVEL_MIN + 1
 
 
+# Covers: AC-SRS-004-02
 def test_original_targets_skipped_when_already_processed() -> None:
     """original_targets should not double-increment a word already in target_words."""
     engine = _in_memory_engine()
@@ -253,6 +264,7 @@ def test_original_targets_skipped_when_already_processed() -> None:
     assert records["apple"].level == LEVEL_MIN + 1
 
 
+# Covers: AC-SRS-004-03
 def test_original_targets_skipped_when_marked_unknown() -> None:
     """original_targets should not advance a word the user marked as unknown."""
     engine = _in_memory_engine()
