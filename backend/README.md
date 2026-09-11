@@ -10,13 +10,23 @@ This is the backend component for OpenVoca, providing a REST API and acting as t
 
 ## Development Setup
 
+All commands run from the `backend/` directory and work on Windows, macOS and Linux.
+
 ```bash
-# Sync dependencies (this creates the .venv automatically using uv)
+# Sync dependencies (this creates .venv automatically using uv)
 uv sync
 
 # Run the development server (auto-reloads on file changes)
 uv run fastapi dev src/main.py
+
+# Equivalent alternative, useful when you need explicit uvicorn flags
+uv run uvicorn src.main:app --reload --port 8000
 ```
+
+In VS Code, run the `Dev Backend` task, or press F5 with the
+`Backend (FastAPI, reload)` launch configuration. The interpreter is resolved
+from `python.defaultInterpreterPath` in `.vscode/settings.json`, so no
+platform-specific path needs to be hard-coded.
 
 ## Testing & TDD
 

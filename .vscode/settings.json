@@ -1,0 +1,9 @@
+{
+  // Point at the venv folder instead of a platform-specific executable path,
+  // so the same file works on Windows, macOS and Linux.
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.cwd": "${workspaceFolder}/backend",
+  "python.testing.pytestArgs": ["tests"]
+}

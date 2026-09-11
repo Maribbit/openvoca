@@ -32,6 +32,44 @@
         "kind": "test",
         "isDefault": true
       }
+    },
+    {
+      "label": "Dev Backend",
+      "type": "shell",
+      "command": "uv run fastapi dev src/main.py",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev"
+      }
+    },
+    {
+      "label": "Dev Frontend",
+      "type": "shell",
+      "command": "pnpm dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev"
+      }
+    },
+    {
+      "label": "Dev (Backend + Frontend)",
+      "dependsOn": ["Dev Backend", "Dev Frontend"],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "shared",
+        "group": "dev"
+      }
     }
   ]
 }

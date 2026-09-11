@@ -2,20 +2,31 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Backend (FastAPI)",
+      // Interpreter resolves from python.defaultInterpreterPath in settings.json.
+      "name": "Backend (FastAPI, reload)",
       "type": "debugpy",
       "request": "launch",
-      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
       "module": "fastapi",
-      "args": [
-        "dev",
-        "src/main.py"
-      ],
+      "args": ["dev", "src/main.py"],
       "cwd": "${workspaceFolder}/backend",
       "justMyCode": false,
       "presentation": {
         "group": "OpenVoca",
         "order": 1
+      }
+    },
+    {
+      // Without --reload the server runs in-process, so breakpoints bind reliably.
+      "name": "Backend (FastAPI, breakpoints)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["src.main:app"],
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": false,
+      "presentation": {
+        "group": "OpenVoca",
+        "order": 2
       }
     }
   ]
