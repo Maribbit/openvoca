@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.10.0
+
+Date: 2026-09-13
+
+### Breaking Changes
+- **Provider API reshaped around key independence.** The API key is no longer part of the endpoint/model payload, because a single field carrying both a masked read value and a writable secret caused real data loss (see Fixed below). Clients must migrate:
+  - `PUT /api/provider` now accepts `{endpoint, model, headers}` only.
+  - `PUT /api/provider/key` sets the key; empty values are rejected with 422.
+  - `DELETE /api/provider/key` clears it. This is the only way to unset.
+  - `GET /api/provider` returns `apiKeySet` and `apiKeyHint` instead of `apiKey`.
+  - `PUT /api/settings/provider` and `PUT /api/settings/provider/{key}` now return 403: provider configuration has a single write path that also rebuilds the active client.
+  - `GET /api/settings` and `GET /api/settings/{namespace}` exclude `apiKey` and `headers` entirely.
+  - `DELETE /api/settings` no longer clears the provider namespace, so resetting preferences cannot discard the model configuration.
+
+### Added
+- **Custom request headers for the model provider** -- Some OpenAI-compatible endpoints require extra headers to route requests. OpenCode Zen, for example, returns `400 MissingSessionID` without `x-opencode-session`, which reads like a credential or model problem rather than a missing header. Headers are configurable in a collapsible "Advanced" section, merged over the built-in ones so an explicitly configured header wins (enabling non-Bearer auth schemes), and applied to both streaming and non-streaming requests. Invalid names or values are rejected at write time: newline characters in a value would otherwise allow injecting additional headers.
+- **Dedicated API key lifecycle** -- The key is now independent of the endpoint and model. When set, the field shows a read-only status with an irreversible hint; changing it requires clearing first. The hint is rendered as text rather than bound to an input, so a masked value can never be saved back as the real key.
+- **`docs/specs/`** -- Specifications became the entry point for development, with stable acceptance criteria IDs and inline test traceability.
+- **Deferred criteria tracking** -- `docs/specs/deferred.txt` records criteria that are specified but not yet implemented. The traceability gate distinguishes "planned, not built" from "built, but the test went missing", and rejects entries that already have tests so the list cannot rot.
+
+### Fixed
+- **Streaming generation silently truncated** -- `generate_completion_stream` indexed `choices[0]` without checking for an empty array. Providers that emit a usage-only tail chunk (`{"choices": [], ...}`) before `[DONE]` triggered an `IndexError` that was not caught, so the response ended with neither a `complete` nor an `error` event and the interface waited forever. The frontend showed a stalled word count with no error. Ollama never emitted such a chunk, which is why this went unnoticed.
+- **Failed streams now always report** -- An unexpected exception mid-stream produced no terminal event at all. Any failure now yields an `error` event, so a stalled generation can no longer pass for a slow one.
+- **API key lost when editing the model** -- Changing the endpoint or model wiped the in-memory key while the database kept it, so requests failed until a restart appeared to restore it. An empty value meant "do not change" to one code path and "set to empty" to another.
+- **Database files were world-readable** -- The database stores the API key and custom headers, which may carry session credentials. The file was created with the default umask, leaving it readable by other users on the same machine, and its SQLite sidecars (`-journal`, `-wal`, `-shm`) shared the exposure. Files are now restricted to the owner, and databases created by earlier versions are tightened on startup.
+- **Frontend caches could hold session headers** -- The settings cache, export and import skipped only the API key. Custom headers, which can carry session credentials, reached `localStorage` and exported JSON files. The sensitive-key list is now defined once and shared by all three paths.
+- **Cross-platform launch configuration** -- The documented dev command (`fastapi dev src/main.py`) failed outside Windows with `ModuleNotFoundError: No module named 'src'`, and the VS Code launch configuration hard-coded a Windows interpreter path. The package now has explicit `__init__.py` files, the interpreter is resolved per platform, and development tasks are available for both servers.
+
+### Changed
+- **Specs-first workflow enforced** -- AI coding guidelines now require reading acceptance criteria before writing tests or code, and mandate inline `Covers:` annotations on new tests.
+- **Traceability checker rewritten** -- Reports deferred criteria separately, validates that every deferred entry exists and is still unimplemented, and prints actionable guidance.
+
+### Changed Files
+- `backend/src/integrations/openai_compat.py` -- `extra_headers` support, header merge order, empty-`choices` tolerance.
+- `backend/src/main.py` -- Provider write paths, `_reload_provider()`, header validation and persistence, stream error reporting.
+- `backend/src/services/settings_store.py` -- `PROTECTED_NAMESPACES`, `delete_setting()`, protected-namespace-aware clear.
+- `backend/src/services/word_store.py` -- Restrictive umask and `_restrict_db_permissions()`.
+- `backend/tests/test_provider_config.py`, `backend/tests/test_openai_compat.py`, `backend/tests/test_main.py`, `backend/tests/test_word_store.py` -- Coverage for the above.
+- `frontend/src/api/settings.ts`, `frontend/src/views/SettingsView.vue`, `frontend/src/composables/useI18n.ts` -- Key lifecycle, header editing.
+- `frontend/src/composables/useSettings.ts` -- Shared sensitive-key list.
+- `frontend/tests/SettingsView.spec.ts`, `frontend/tests/useSettings.spec.ts` -- Coverage for the above.
+- `docs/specs/` -- New specs, deferred list, and index corrections.
+- `scripts/check_traceability.py` -- Deferred-aware rewrite.
+- `.vscode/`, `backend/README.md` -- Cross-platform interpreter, launch and task configuration.
+
 ## v0.9.9
 
 Date: 2026-05-09

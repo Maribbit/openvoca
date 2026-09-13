@@ -9,6 +9,19 @@ import {
 
 const CACHE_KEY = "openvoca.settings.cache";
 
+/**
+ * Provider keys served only by the dedicated provider API.
+ *
+ * They may carry credentials (the API key, session headers), so generic
+ * settings paths must skip them when caching, exporting and importing.
+ * Keeping one definition here stops the three call sites from drifting apart.
+ */
+const PROVIDER_SENSITIVE_KEYS = new Set(["apiKey", "headers"]);
+
+function isProviderSensitive(namespace: string, key: string): boolean {
+  return namespace === "provider" && PROVIDER_SENSITIVE_KEYS.has(key);
+}
+
 /** Flat reactive store: settings[namespace][key] = value */
 const store = reactive<SettingsMap>({});
 
@@ -34,7 +47,7 @@ function saveCache(): void {
   for (const [ns, entries] of Object.entries(store)) {
     const filtered: Record<string, string> = {};
     for (const [k, v] of Object.entries(entries)) {
-      if (ns === "provider" && k === "apiKey") continue;
+      if (isProviderSensitive(ns, k)) continue;
       filtered[k] = v;
     }
     if (Object.keys(filtered).length > 0) {
@@ -134,14 +147,14 @@ async function clearAll(): Promise<void> {
 
 /**
  * Export all settings as a JSON-serializable map.
- * Excludes sensitive keys (e.g. API key) to prevent accidental leakage.
+ * Excludes sensitive provider keys to prevent accidental leakage.
  */
 function exportAll(): SettingsMap {
   const snapshot: SettingsMap = {};
   for (const [ns, entries] of Object.entries(store)) {
     const filtered: Record<string, string> = {};
     for (const [k, v] of Object.entries(entries)) {
-      if (ns === "provider" && k === "apiKey") continue;
+      if (isProviderSensitive(ns, k)) continue;
       filtered[k] = v;
     }
     if (Object.keys(filtered).length > 0) {
@@ -153,7 +166,7 @@ function exportAll(): SettingsMap {
 
 /**
  * Import settings from a JSON map. Merges into existing settings.
- * Sensitive keys (e.g. provider.apiKey) are silently skipped.
+ * Sensitive provider keys are silently skipped.
  * Persists each namespace to the backend and updates localStorage.
  */
 async function importAll(data: SettingsMap): Promise<void> {
@@ -167,7 +180,7 @@ async function importAll(data: SettingsMap): Promise<void> {
     const filtered: Record<string, string> = {};
     for (const [k, v] of Object.entries(entries)) {
       if (typeof v !== "string") continue;
-      if (ns === "provider" && k === "apiKey") continue;
+      if (isProviderSensitive(ns, k)) continue;
       filtered[k] = v;
     }
     if (Object.keys(filtered).length === 0) continue;

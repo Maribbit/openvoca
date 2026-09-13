@@ -267,6 +267,38 @@ def test_reading_sentence_returns_502_on_ollama_failure(
     assert response.status_code == 502
 
 
+# Covers: AC-GEN-003-07
+def test_stream_emits_error_event_on_unexpected_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unexpected failure mid-stream must surface as an error event.
+
+    Otherwise the response ends without a terminal event and the client waits
+    forever on a stream that has already died.
+    """
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    async def exploding_stream(prompt: str):  # noqa: ANN202
+        yield "Rain"
+        raise RuntimeError("unexpected parser failure")
+
+    monkeypatch.setattr(
+        main_module.llm,
+        "generate_completion_stream",
+        exploding_stream,
+    )
+
+    response = client.post(
+        "/api/reading-sentence/next/stream",
+        json={"prompt": "Write a sentence about rain.", "targetWords": []},
+    )
+
+    assert response.status_code == 200
+    assert "event: error" in response.text
+    assert "event: complete" not in response.text
+
+
 # Covers: AC-LOOP-003-02, AC-SRS-001-01
 def test_feedback_via_api(monkeypatch: pytest.MonkeyPatch) -> None:
     """The /api/feedback endpoint should accept lemma strings."""

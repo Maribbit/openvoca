@@ -2,6 +2,11 @@ from sqlmodel import Field, Session, SQLModel, select
 
 from src.services.word_store import get_engine
 
+# Namespaces the generic store must not write to. The provider namespace holds
+# the active LLM configuration, which has a dedicated write path that also
+# rebuilds the in-memory client; writing it here would let the two drift apart.
+PROTECTED_NAMESPACES = frozenset({"provider"})
+
 
 class SettingRecord(SQLModel, table=True):
     namespace: str = Field(primary_key=True)
@@ -102,13 +107,35 @@ def delete_namespace(namespace: str, engine=None) -> int:
         return count
 
 
+def delete_setting(namespace: str, key: str, engine=None) -> int:
+    """Delete a single setting. Returns 1 when a row was removed, otherwise 0."""
+    target = _get_engine(engine)
+    with Session(target) as session:
+        record = session.exec(
+            select(SettingRecord).where(
+                SettingRecord.namespace == namespace,
+                SettingRecord.key == key,
+            )
+        ).first()
+        if record is None:
+            return 0
+        session.delete(record)
+        session.commit()
+        return 1
+
+
 def clear_all_settings(engine=None) -> int:
-    """Delete every setting across all namespaces. Returns count of deleted rows."""
+    """Delete every setting outside protected namespaces.
+
+    Returns count of deleted rows. Protected namespaces are skipped so that
+    resetting preferences cannot silently discard the model configuration.
+    """
     target = _get_engine(engine)
     with Session(target) as session:
         records = session.exec(select(SettingRecord)).all()
-        count = len(records)
-        for record in records:
+        targets = [r for r in records if r.namespace not in PROTECTED_NAMESPACES]
+        count = len(targets)
+        for record in targets:
             session.delete(record)
         session.commit()
         return count

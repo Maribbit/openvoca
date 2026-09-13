@@ -57,6 +57,17 @@ export interface LocaleMessages {
   apiKey: string;
   apiKeyPlaceholder: string;
   apiKeyHint: string;
+  apiKeyConfigured: string;
+  apiKeySave: string;
+  apiKeyClear: string;
+  apiKeyClearConfirm: string;
+  providerSaveFailed: string;
+  advancedHeaders: string;
+  advancedHeadersHint: string;
+  headerName: string;
+  headerValue: string;
+  addHeader: string;
+  removeHeader: string;
   modelPlaceholder: string;
   clearAllVocabulary: string;
   clearAllVocabularyDescription: string;
@@ -243,6 +254,19 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     apiKeyPlaceholder: "Not required for local models",
     apiKeyHint:
       "Stored locally on your machine. Never transmitted to third parties.",
+    apiKeyConfigured: "Configured",
+    apiKeySave: "Save Key",
+    apiKeyClear: "Clear Key",
+    apiKeyClearConfirm:
+      "Clear the saved API key? You will need to enter it again.",
+    providerSaveFailed: "Failed to save the model configuration.",
+    advancedHeaders: "Advanced: Custom Headers",
+    advancedHeadersHint:
+      "Some providers require extra request headers, e.g. x-opencode-session.",
+    headerName: "Header",
+    headerValue: "Value",
+    addHeader: "Add Header",
+    removeHeader: "Remove",
     modelPlaceholder: "e.g. deepseek-chat, gpt-4o-mini",
     clearAllVocabulary: "Clear all vocabulary",
     clearAllVocabularyDescription:
@@ -439,6 +463,18 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     apiKey: "API 密钥",
     apiKeyPlaceholder: "本地模型无需填写",
     apiKeyHint: "仅存储在本地，不会传输给第三方。",
+    apiKeyConfigured: "已配置",
+    apiKeySave: "保存密钥",
+    apiKeyClear: "清除密钥",
+    apiKeyClearConfirm: "确定要清除已保存的 API 密钥吗？清除后需要重新填写。",
+    providerSaveFailed: "保存模型配置失败。",
+    advancedHeaders: "高级：自定义请求头",
+    advancedHeadersHint:
+      "部分服务商需要额外的请求头，例如 x-opencode-session。",
+    headerName: "请求头",
+    headerValue: "取值",
+    addHeader: "添加请求头",
+    removeHeader: "移除",
     modelPlaceholder: "如 deepseek-chat、gpt-4o-mini",
     clearAllVocabulary: "清空所有词汇",
     clearAllVocabularyDescription: "永久删除所有单词记录和学习进度。",

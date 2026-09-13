@@ -1,4 +1,8 @@
+from pathlib import Path
+
 import pytest
+from sqlmodel import SQLModel
+
 from src.services.word_store import (
     LEVEL_BASE,
     LEVEL_MAX,
@@ -6,6 +10,7 @@ from src.services.word_store import (
     ImportResult,
     MAX_IMPORT_ROWS,
     _make_engine,
+    _restrict_db_permissions,
     apply_feedback,
     draft_feedback,
     clear_all_words,
@@ -261,6 +266,60 @@ def test_make_engine_respects_data_dir(
     monkeypatch.setenv("OPENVOCA_DATA_DIR", str(tmp_path))
     engine = _make_engine()
     assert str(tmp_path / "openvoca.db") in str(engine.url)
+
+
+# Covers: AC-SRS-007-02
+def test_new_database_is_owner_only(
+    tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A freshly created database must not be readable by other users."""
+    monkeypatch.setenv("OPENVOCA_DATA_DIR", str(tmp_path))
+    engine = _make_engine()
+    SQLModel.metadata.create_all(engine)
+    engine.dispose()
+
+    db_path = Path(tmp_path) / "openvoca.db"
+    assert db_path.stat().st_mode & 0o777 == 0o600
+
+
+# Covers: AC-SRS-007-02
+def test_legacy_permissive_database_is_tightened(
+    tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A database left at 0644 by an earlier version is tightened on startup."""
+    db_path = Path(tmp_path) / "openvoca.db"
+    db_path.write_bytes(b"")
+    db_path.chmod(0o644)
+
+    monkeypatch.setenv("OPENVOCA_DATA_DIR", str(tmp_path))
+    engine = _make_engine()
+    engine.dispose()
+
+    assert db_path.stat().st_mode & 0o777 == 0o600
+
+
+# Covers: AC-SRS-007-02
+def test_sqlite_sidecar_files_are_restricted(tmp_path: pytest.TempPathFactory) -> None:
+    """Journal/WAL sidecars carry database content, so they are restricted too."""
+    db_path = Path(tmp_path) / "openvoca.db"
+    db_path.write_bytes(b"")
+    journal = Path(f"{db_path}-journal")
+    journal.write_bytes(b"")
+    for path in (db_path, journal):
+        path.chmod(0o644)
+
+    _restrict_db_permissions(db_path)
+
+    assert db_path.stat().st_mode & 0o777 == 0o600
+    assert journal.stat().st_mode & 0o777 == 0o600
+
+
+# Covers: AC-SRS-007-02
+def test_restrict_permissions_tolerates_missing_files(
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    """Absent sidecar files must not raise on a first run."""
+    _restrict_db_permissions(Path(tmp_path) / "does-not-exist.db")
 
 
 # ---------------------------------------------------------------------------

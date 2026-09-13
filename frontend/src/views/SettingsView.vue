@@ -212,6 +212,7 @@
                 </label>
                 <input
                   v-model="selectedModel"
+                  data-testid="provider-model-input"
                   type="text"
                   :placeholder="i18nMessages.modelPlaceholder"
                   class="rounded-xl border border-black/8 bg-paper px-4 py-2.5 text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
@@ -226,13 +227,45 @@
                 {{ i18nMessages.apiKey }}
               </label>
               <div class="flex gap-2">
+                <!-- Stored: read-only. The hint is text, never an input value,
+                     so it can never be written back as if it were the key. -->
+                <div
+                  v-if="apiKeySet"
+                  data-testid="provider-key-status"
+                  class="flex flex-1 items-center gap-2 rounded-xl border border-black/8 bg-black/3 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5"
+                >
+                  <span class="text-inkLight">
+                    {{ i18nMessages.apiKeyConfigured }}
+                  </span>
+                  <span class="font-mono text-ink">{{ apiKeyHint }}</span>
+                </div>
                 <input
-                  v-model="providerApiKey"
+                  v-else
+                  v-model="providerKeyDraft"
+                  data-testid="provider-key-input"
                   type="password"
                   :placeholder="i18nMessages.apiKeyPlaceholder"
                   class="flex-1 rounded-xl border border-black/8 bg-paper px-4 py-2.5 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
-                  @change="saveProvider"
                 />
+                <button
+                  v-if="apiKeySet"
+                  type="button"
+                  data-testid="provider-key-clear"
+                  class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
+                  @click="confirmClearProviderKey"
+                >
+                  {{ i18nMessages.apiKeyClear }}
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  data-testid="provider-key-save"
+                  class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
+                  :disabled="!providerKeyDraft || savingKey"
+                  @click="submitProviderKey"
+                >
+                  {{ i18nMessages.apiKeySave }}
+                </button>
                 <button
                   type="button"
                   class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
@@ -265,6 +298,66 @@
                 </span>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- ===== Custom Request Headers ===== -->
+        <section
+          class="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-sm"
+        >
+          <button
+            type="button"
+            data-testid="provider-headers-toggle"
+            class="flex w-full items-center justify-between px-6 py-4 text-left"
+            @click="showAdvanced = !showAdvanced"
+          >
+            <span class="text-sm font-semibold text-ink">
+              {{ i18nMessages.advancedHeaders }}
+            </span>
+            <span class="text-xs text-inkLight">
+              {{ showAdvanced ? "▾" : "▸" }}
+            </span>
+          </button>
+          <div v-if="showAdvanced" class="space-y-4 px-6 pb-6">
+            <p class="text-xs text-inkLight">
+              {{ i18nMessages.advancedHeadersHint }}
+            </p>
+            <div
+              v-for="(header, index) in headerDrafts"
+              :key="index"
+              class="flex gap-2"
+            >
+              <input
+                v-model="header.name"
+                data-testid="provider-header-name"
+                type="text"
+                :placeholder="i18nMessages.headerName"
+                class="flex-1 rounded-xl border border-black/8 bg-paper px-4 py-2.5 font-mono text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
+              />
+              <input
+                v-model="header.value"
+                data-testid="provider-header-value"
+                type="text"
+                :placeholder="i18nMessages.headerValue"
+                class="flex-1 rounded-xl border border-black/8 bg-paper px-4 py-2.5 font-mono text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
+              />
+              <button
+                type="button"
+                data-testid="provider-header-remove"
+                class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-inkLight transition-colors hover:bg-black/4 hover:text-ink dark:border-white/15 dark:hover:bg-white/8"
+                @click="removeHeader(index)"
+              >
+                {{ i18nMessages.removeHeader }}
+              </button>
+            </div>
+            <button
+              type="button"
+              data-testid="provider-header-add"
+              class="rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
+              @click="addHeader"
+            >
+              + {{ i18nMessages.addHeader }}
+            </button>
           </div>
         </section>
 
@@ -549,7 +642,13 @@
   import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 
   import { clearVocabulary, exportVocabulary } from "../api/reading";
-  import { fetchProvider, setProvider, testProvider } from "../api/settings";
+  import {
+    clearProviderKey,
+    fetchProvider,
+    setProvider,
+    setProviderKey,
+    testProvider,
+  } from "../api/settings";
   import { type Locale, useI18n } from "../composables/useI18n";
   import { useSettings } from "../composables/useSettings";
 
@@ -584,7 +683,18 @@
 
   const selectedModel = ref("");
   const providerEndpoint = ref("http://localhost:11434");
-  const providerApiKey = ref("");
+  /** Draft value for a not-yet-saved key. Never holds a stored or masked value. */
+  const providerKeyDraft = ref("");
+  const apiKeySet = ref(false);
+  const apiKeyHint = ref("");
+  const savingKey = ref(false);
+  /** Header rows are kept as a list so ordering is stable while editing. */
+  interface HeaderDraft {
+    name: string;
+    value: string;
+  }
+  const headerDrafts = ref<HeaderDraft[]>([]);
+  const showAdvanced = ref(false);
   const connectionStatus = ref<"idle" | "testing" | "ok" | "error">("idle");
   const connectionMessage = ref("");
   const showEndpointHint = ref(false);
@@ -703,18 +813,90 @@
     set("dictionary", { display: mode });
   }
 
+  /** Collect edited rows, dropping rows without a name. */
+  function collectHeaders(): Record<string, string> {
+    const result: Record<string, string> = {};
+    for (const row of headerDrafts.value) {
+      const name = row.name.trim();
+      if (!name) continue;
+      result[name] = row.value;
+    }
+    return result;
+  }
+
+  function addHeader(): void {
+    headerDrafts.value.push({ name: "", value: "" });
+  }
+
+  function removeHeader(index: number): void {
+    headerDrafts.value.splice(index, 1);
+  }
+
   async function saveProvider(): Promise<void> {
-    await setProvider({
+    const state = await setProvider({
       endpoint: providerEndpoint.value,
       model: selectedModel.value,
-      apiKey: providerApiKey.value,
+      headers: collectHeaders(),
     });
+    applyProviderState(state);
+  }
+
+  /** Mirror server state so the key's configured status stays authoritative. */
+  function applyProviderState(state: {
+    endpoint: string;
+    model: string;
+    headers: Record<string, string>;
+    apiKeySet: boolean;
+    apiKeyHint: string;
+  }): void {
+    providerEndpoint.value = state.endpoint;
+    selectedModel.value = state.model;
+    headerDrafts.value = Object.entries(state.headers ?? {}).map(
+      ([name, value]) => ({ name, value }),
+    );
+    // Surface existing headers without hiding them behind a collapsed toggle.
+    if (headerDrafts.value.length > 0) showAdvanced.value = true;
+    apiKeySet.value = state.apiKeySet;
+    apiKeyHint.value = state.apiKeyHint;
+  }
+
+  async function submitProviderKey(): Promise<void> {
+    const draft = providerKeyDraft.value.trim();
+    if (!draft) return;
+    savingKey.value = true;
+    try {
+      applyProviderState(await setProviderKey(draft));
+      providerKeyDraft.value = "";
+    } catch {
+      window.alert(i18nMessages.value.providerSaveFailed);
+    } finally {
+      savingKey.value = false;
+    }
+  }
+
+  function confirmClearProviderKey(): void {
+    if (window.confirm(i18nMessages.value.apiKeyClearConfirm)) {
+      void handleClearProviderKey();
+    }
+  }
+
+  async function handleClearProviderKey(): Promise<void> {
+    applyProviderState(await clearProviderKey());
+    providerKeyDraft.value = "";
+    connectionStatus.value = "idle";
+    connectionMessage.value = "";
   }
 
   async function handleTestConnection(): Promise<void> {
     connectionStatus.value = "testing";
     connectionMessage.value = "";
-    await saveProvider();
+    try {
+      await saveProvider();
+    } catch {
+      connectionStatus.value = "error";
+      connectionMessage.value = "Network error";
+      return;
+    }
     try {
       const result = await testProvider();
       connectionStatus.value = result.ok ? "ok" : "error";
@@ -804,8 +986,15 @@
 
     Promise.all([fetchProvider()])
       .then(([provider]) => {
-        providerEndpoint.value = provider?.endpoint ?? "http://localhost:11434";
-        selectedModel.value = provider?.model ?? DEFAULT_MODEL;
+        applyProviderState(
+          provider ?? {
+            endpoint: "http://localhost:11434",
+            model: DEFAULT_MODEL,
+            headers: {},
+            apiKeySet: false,
+            apiKeyHint: "",
+          },
+        );
       })
       .catch(() => {
         // keep defaults

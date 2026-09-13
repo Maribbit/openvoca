@@ -5,6 +5,7 @@ import json
 import csv
 import io
 import os
+import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,7 @@ import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.integrations.openai_compat import OpenAICompatibleClient
 from src.integrations.provider import LLMProvider
@@ -35,7 +36,9 @@ from src.services.word_store import (
     update_word_record,
 )
 from src.services.settings_store import (
+    PROTECTED_NAMESPACES,
     clear_all_settings,
+    delete_setting,
     get_all_settings,
     get_namespace,
     init_settings_table,
@@ -105,15 +108,66 @@ init_settings_table()
 
 DEFAULT_ENDPOINT = "http://localhost:11434"
 DEFAULT_MODEL = ""
+PROVIDER_NAMESPACE = "provider"
+
+# Header names must be HTTP tokens; values must not span lines, which would
+# allow injecting additional headers.
+_HEADER_NAME_RE = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+_MAX_HEADER_COUNT = 20
+_MAX_HEADER_LENGTH = 1000
+
+
+def _validate_headers(headers: dict[str, str]) -> dict[str, str]:
+    """Reject header names or values that cannot be sent safely."""
+    if len(headers) > _MAX_HEADER_COUNT:
+        raise ValueError(f"at most {_MAX_HEADER_COUNT} custom headers are allowed")
+    for name, value in headers.items():
+        if not _HEADER_NAME_RE.fullmatch(name):
+            raise ValueError(f"invalid header name: {name!r}")
+        if any(c in value for c in "\r\n") or _has_control_chars(value):
+            raise ValueError(f"invalid value for header {name!r}")
+        if len(value) > _MAX_HEADER_LENGTH:
+            raise ValueError(f"header {name!r} exceeds {_MAX_HEADER_LENGTH} characters")
+    return headers
+
+
+def _has_control_chars(value: str) -> bool:
+    """Return True when the value holds control characters other than tab."""
+    return any(ord(c) < 32 and c != "\t" for c in value)
+
+
+def _encode_headers(headers: dict[str, str]) -> str:
+    """Serialise headers for the single-string settings store."""
+    return json.dumps(headers, ensure_ascii=False, sort_keys=True)
+
+
+def _decode_headers(raw: str) -> dict[str, str]:
+    """Read back persisted headers, tolerating absent or corrupt values."""
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {
+        k: v for k, v in parsed.items() if isinstance(k, str) and isinstance(v, str)
+    }
 
 
 def _load_provider() -> OpenAICompatibleClient:
-    """Build the LLM client from persisted settings (namespace 'provider')."""
-    cfg = get_namespace("provider")
+    """Build the LLM client from persisted settings.
+
+    Persisted settings are the single source of truth; the client is a derived
+    cache. Never read provider configuration from anywhere else.
+    """
+    cfg = get_namespace(PROVIDER_NAMESPACE)
     return OpenAICompatibleClient(
         base_url=cfg.get("endpoint", DEFAULT_ENDPOINT),
         model=cfg.get("model", DEFAULT_MODEL),
         api_key=cfg.get("apiKey", ""),
+        extra_headers=_decode_headers(cfg.get("headers", "{}")),
     )
 
 
@@ -319,49 +373,108 @@ def _mask_api_key(key: str) -> str:
 
 
 class ProviderConfig(BaseModel):
+    """Endpoint, model and optional custom request headers.
+
+    The API key has its own lifecycle and is never part of this payload.
+    """
+
     model_config = ConfigDict(populate_by_name=True)
 
     endpoint: str = Field(default=DEFAULT_ENDPOINT, max_length=500)
     model: str = Field(default=DEFAULT_MODEL, max_length=200)
-    api_key: str = Field(default="", alias="apiKey", max_length=500)
+    headers: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("headers")
+    @classmethod
+    def _check_headers(cls, value: dict[str, str]) -> dict[str, str]:
+        try:
+            return _validate_headers(value)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
 
 
-@app.get("/api/provider")
-def get_provider() -> dict[str, str]:
-    """Return the current LLM provider configuration (API key masked)."""
+class ProviderKeyBody(BaseModel):
+    """API key write payload.
+
+    Empty values are rejected rather than interpreted as "clear", so the empty
+    string never carries meaning on this path.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    api_key: str = Field(alias="apiKey", min_length=1, max_length=500)
+
+
+def _provider_state() -> dict[str, object]:
+    """Describe the active provider without exposing the key itself.
+
+    Custom headers are returned in full: unlike the key they must be editable,
+    so the client needs their actual contents.
+    """
     if isinstance(llm, OpenAICompatibleClient):
         return {
             "endpoint": llm.base_url,
             "model": llm.model,
-            "apiKey": _mask_api_key(llm.api_key),
+            "headers": dict(llm.extra_headers),
+            "apiKeySet": bool(llm.api_key),
+            "apiKeyHint": _mask_api_key(llm.api_key),
         }
-    return {"endpoint": DEFAULT_ENDPOINT, "model": DEFAULT_MODEL, "apiKey": ""}
+    return {
+        "endpoint": DEFAULT_ENDPOINT,
+        "model": DEFAULT_MODEL,
+        "headers": {},
+        "apiKeySet": False,
+        "apiKeyHint": "",
+    }
 
 
-@app.put("/api/provider")
-async def set_provider(config: ProviderConfig) -> dict[str, str]:
-    """Switch the LLM provider at runtime and persist to settings."""
+async def _reload_provider() -> None:
+    """Rebuild the LLM client from persisted settings.
+
+    Every provider write goes through here so the runtime configuration cannot
+    drift from what is stored.
+    """
     global llm
     if isinstance(llm, OpenAICompatibleClient):
         await llm.aclose()
-    llm = OpenAICompatibleClient(
-        base_url=config.endpoint,
-        model=config.model,
-        api_key=config.api_key,
+    llm = _load_provider()
+
+
+@app.get("/api/provider")
+def get_provider() -> dict[str, object]:
+    """Return endpoint/model plus whether a key is configured (never the key)."""
+    return _provider_state()
+
+
+@app.put("/api/provider")
+async def set_provider(config: ProviderConfig) -> dict[str, object]:
+    """Update endpoint, model and custom headers, leaving the API key untouched."""
+    upsert_namespace(
+        PROVIDER_NAMESPACE,
+        {
+            "endpoint": config.endpoint,
+            "model": config.model,
+            "headers": _encode_headers(config.headers),
+        },
     )
-    # Persist for next startup
-    settings: dict[str, str] = {
-        "endpoint": config.endpoint,
-        "model": config.model,
-    }
-    if config.api_key:
-        settings["apiKey"] = config.api_key
-    upsert_namespace("provider", settings)
-    return {
-        "endpoint": llm.base_url,
-        "model": llm.model,
-        "apiKey": _mask_api_key(llm.api_key),
-    }
+    await _reload_provider()
+    return _provider_state()
+
+
+@app.put("/api/provider/key")
+async def set_provider_key(body: ProviderKeyBody) -> dict[str, object]:
+    """Store the API key. An empty value is rejected by validation."""
+    upsert_setting(PROVIDER_NAMESPACE, "apiKey", body.api_key)
+    await _reload_provider()
+    return _provider_state()
+
+
+@app.delete("/api/provider/key")
+async def clear_provider_key() -> dict[str, object]:
+    """Remove the stored API key. This is the only way to unset it."""
+    delete_setting(PROVIDER_NAMESPACE, "apiKey")
+    await _reload_provider()
+    return _provider_state()
 
 
 @app.post("/api/provider/test")
@@ -440,6 +553,11 @@ async def stream_next_reading_sentence(
                 yield f"event: progress\ndata: {json.dumps({'wordCount': word_count})}\n\n"
         except (httpx.HTTPError, ValueError) as exc:
             yield f"event: error\ndata: {json.dumps({'detail': str(exc)[:300]})}\n\n"
+            return
+        except Exception as exc:  # noqa: BLE001
+            # A dying generator would otherwise end the response with no
+            # terminal event, leaving the client waiting indefinitely.
+            yield f"event: error\ndata: {json.dumps({'detail': f'Generation failed: {exc}'[:300]})}\n\n"
             return
 
         completion = _normalize_completion(accumulated, request.mode)
@@ -706,24 +824,51 @@ class SettingValueBody(BaseModel):
     value: str = Field(min_length=1)
 
 
+def _public_settings(namespace: str, settings: dict[str, str]) -> dict[str, str]:
+    """Remove values that are served only by their dedicated endpoint.
+
+    The provider API key and custom headers are served by /api/provider; the
+    generic settings read must not carry them, so local caches and exports
+    contain no trace of either.
+    """
+    if namespace != PROVIDER_NAMESPACE:
+        return settings
+    hidden = {"apiKey", "headers"}
+    return {k: v for k, v in settings.items() if k not in hidden}
+
+
+def _reject_protected_namespace(namespace: str) -> None:
+    """Block generic writes to namespaces that have a dedicated write path."""
+    if namespace in PROTECTED_NAMESPACES:
+        raise HTTPException(
+            status_code=403,
+            detail=f"The '{namespace}' namespace is managed through /api/provider.",
+        )
+
+
 @app.get("/api/settings")
 def get_settings_all() -> dict[str, dict[str, str]]:
-    return get_all_settings()
+    return {
+        namespace: _public_settings(namespace, values)
+        for namespace, values in get_all_settings().items()
+    }
 
 
 @app.get("/api/settings/{namespace}")
 def get_settings_namespace(namespace: str) -> dict[str, str]:
-    return get_namespace(namespace)
+    return _public_settings(namespace, get_namespace(namespace))
 
 
 @app.put("/api/settings/{namespace}/{key}")
 def put_setting(namespace: str, key: str, body: SettingValueBody) -> dict[str, str]:
+    _reject_protected_namespace(namespace)
     upsert_setting(namespace, key, body.value)
     return {"status": "ok"}
 
 
 @app.put("/api/settings/{namespace}")
 def put_settings_namespace(namespace: str, settings: dict[str, str]) -> dict[str, str]:
+    _reject_protected_namespace(namespace)
     upsert_namespace(namespace, settings)
     return {"status": "ok"}
 

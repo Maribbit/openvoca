@@ -93,4 +93,49 @@ describe("useSettings – exportAll / importAll", () => {
 
     expect(settings.store.interface?.locale).toBe("en");
   });
+
+  // Covers: AC-SET-005-09
+  it("exportAll excludes provider.headers", () => {
+    settings.set("provider", {
+      endpoint: "https://opencode.ai/zen/go",
+      model: "deepseek-v4-flash",
+      headers: '{"x-opencode-session":"secret-session"}',
+    });
+
+    const exported = settings.exportAll();
+
+    expect(exported.provider).toBeDefined();
+    expect(exported.provider!.endpoint).toBe("https://opencode.ai/zen/go");
+    expect(exported.provider!.model).toBe("deepseek-v4-flash");
+    expect(exported.provider!.headers).toBeUndefined();
+  });
+
+  // Covers: AC-SET-005-09
+  it("localStorage cache excludes provider.headers and apiKey", () => {
+    settings.set("provider", {
+      endpoint: "https://opencode.ai/zen/go",
+      apiKey: "sk-secret-key",
+      headers: '{"x-opencode-session":"secret-session"}',
+    });
+
+    const raw = window.localStorage.getItem("openvoca.settings.cache") ?? "";
+
+    // The endpoint proves the cache was actually written.
+    expect(raw).toContain("opencode.ai");
+    expect(raw).not.toContain("secret-session");
+    expect(raw).not.toContain("sk-secret-key");
+  });
+
+  // Covers: AC-SET-005-09
+  it("importAll skips provider.headers", async () => {
+    await settings.importAll({
+      provider: {
+        endpoint: "https://example.com",
+        headers: '{"x-opencode-session":"imported-secret"}',
+      },
+    });
+
+    expect(settings.store.provider?.endpoint).toBe("https://example.com");
+    expect(settings.store.provider?.headers).toBeUndefined();
+  });
 });

@@ -12,6 +12,14 @@ env:
 jobs:
   # ── Tests (run on every push and PR) ──────────────────────────────
 
+  traceability:
+    name: Traceability
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check specs against tests
+        run: python3 scripts/check_traceability.py
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -43,6 +51,10 @@ jobs:
           enable-cache: true
       - run: uv python install 3.12
       - run: uv sync --frozen
+      - name: Check formatting
+        run: uv run ruff format --check .
+      - name: Lint
+        run: uv run ruff check .
       - run: uv run pytest
 
   # ── Bundle + Release (only on v* tags) ────────────────────────────
@@ -50,7 +62,7 @@ jobs:
   bundle:
     name: Bundle (${{ matrix.platform }})
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [frontend, backend]
+    needs: [traceability, frontend, backend]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

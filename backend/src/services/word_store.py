@@ -23,13 +23,43 @@ class WordRecord(SQLModel, table=True):
     seen_count: int = Field(default=0, ge=0)
 
 
+# SQLite sidecar files share the database contents, so they need the same
+# protection as the database itself.
+_DB_SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
+
+
+def _restrict_db_permissions(db_path: Path) -> None:
+    """Restrict the database and its SQLite sidecars to the owner only.
+
+    The database stores the provider API key and custom request headers, which
+    may carry session credentials. Missing files are skipped, so this is safe
+    to call before the database has been created.
+    """
+    paths = [db_path]
+    paths.extend(Path(f"{db_path}{suffix}") for suffix in _DB_SIDECAR_SUFFIXES)
+    for candidate in paths:
+        if not candidate.exists():
+            continue
+        try:
+            candidate.chmod(0o600)
+        except OSError:
+            # Some filesystems do not support POSIX modes; the creation-time
+            # umask below still applies on those.
+            pass
+
+
 def _make_engine():
     """Create a SQLite engine, respecting OPENVOCA_DATA_DIR if set."""
+    # Restrict files this process creates, including sidecars written later
+    # during a transaction. Kept next to engine setup so the intent is local.
+    os.umask(0o077)
     data_dir = os.environ.get("OPENVOCA_DATA_DIR")
     if data_dir:
         db_path = Path(data_dir) / "openvoca.db"
     else:
         db_path = Path("openvoca.db")
+    # Tighten databases created by earlier versions, which used the default umask.
+    _restrict_db_permissions(db_path)
     return create_engine(f"sqlite:///{db_path}")
 
 

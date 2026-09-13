@@ -60,28 +60,67 @@ export async function deleteAllSettings(): Promise<number> {
   return data.deleted;
 }
 
+export interface ProviderState {
+  endpoint: string;
+  model: string;
+  /** Custom request headers, returned in full so they can be edited. */
+  headers: Record<string, string>;
+  /** Whether a key is stored. The key itself is never sent to the client. */
+  apiKeySet: boolean;
+  /** Irreversible fragment for display only; must never be sent back. */
+  apiKeyHint: string;
+}
+
 export interface ProviderConfig {
   endpoint: string;
   model: string;
-  apiKey?: string;
+  headers: Record<string, string>;
 }
 
-export async function fetchProvider(): Promise<ProviderConfig> {
+const EMPTY_PROVIDER_STATE: ProviderState = {
+  endpoint: "http://localhost:11434",
+  model: "",
+  headers: {},
+  apiKeySet: false,
+  apiKeyHint: "",
+};
+
+export async function fetchProvider(): Promise<ProviderState> {
   const response = await fetch("/api/provider", {
     headers: { Accept: "application/json" },
   });
   if (!response.ok) {
-    return { endpoint: "http://localhost:11434", model: "" };
+    return { ...EMPTY_PROVIDER_STATE };
   }
-  return (await response.json()) as ProviderConfig;
+  return (await response.json()) as ProviderState;
 }
 
-export async function setProvider(config: ProviderConfig): Promise<void> {
-  await fetch("/api/provider", {
+export async function setProvider(
+  config: ProviderConfig,
+): Promise<ProviderState> {
+  const response = await fetch("/api/provider", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(config),
   });
+  if (!response.ok) throw new Error("Failed to save provider settings.");
+  return (await response.json()) as ProviderState;
+}
+
+export async function setProviderKey(apiKey: string): Promise<ProviderState> {
+  const response = await fetch("/api/provider/key", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey }),
+  });
+  if (!response.ok) throw new Error("Failed to save the API key.");
+  return (await response.json()) as ProviderState;
+}
+
+export async function clearProviderKey(): Promise<ProviderState> {
+  const response = await fetch("/api/provider/key", { method: "DELETE" });
+  if (!response.ok) throw new Error("Failed to clear the API key.");
+  return (await response.json()) as ProviderState;
 }
 
 export interface TestResult {

@@ -1,0 +1,31 @@
+# Acceptance criteria that are defined but not yet implemented.
+#
+# The traceability gate treats these as known-pending work rather than missing
+# coverage. This exists because a specs-first workflow always has a window where
+# criteria are written before their tests, and the gate must be able to tell
+# "planned, not built yet" apart from "built, but the test went missing".
+#
+# Rules enforced by scripts/check_traceability.py:
+#   - Every ID listed here must exist in a spec file.
+#   - Listing an ID that already has tests fails the check, so an entry must be
+#     removed once the work lands and the list cannot silently rot.
+#
+# One ID per line. Lines starting with # are ignored.
+
+# Deployment work is deferred by decision; see docs/specs/deployment.md.
+AC-DEPLOY-001-01
+AC-DEPLOY-001-02
+AC-DEPLOY-002-01
+AC-DEPLOY-002-02
+AC-DEPLOY-003-01
+AC-DEPLOY-003-02
+AC-DEPLOY-003-03
+AC-DEPLOY-003-04
+AC-DEPLOY-003-05
+AC-DEPLOY-003-06
+AC-DEPLOY-003-07
+AC-DEPLOY-003-08
+AC-DEPLOY-003-09
+AC-DEPLOY-003-10
+AC-DEPLOY-005-01
+AC-DEPLOY-005-02
