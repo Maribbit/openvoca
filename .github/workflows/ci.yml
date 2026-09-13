@@ -117,7 +117,19 @@ jobs:
       - name: Extract changelog
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          awk "/^## v${VERSION}$/,/^## v/" CHANGELOG.md | head -n -1 > release-notes.md
+          # Capture the section by heading, stopping at the next release.
+          # A range pattern (start,end) would match only the heading line here,
+          # because the end pattern matches the start line too, producing empty
+          # release notes. An explicit flag keeps the section's body.
+          awk -v ver="v${VERSION}" '
+            $0 == "## " ver { capture = 1; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "ERROR: CHANGELOG.md has no section for v${VERSION}." >&2
+            exit 1
+          fi
           cat release-notes.md
       - name: Create release
         uses: softprops/action-gh-release@v2

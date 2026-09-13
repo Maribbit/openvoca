@@ -29,10 +29,12 @@ Date: 2026-09-13
 - **Database files were world-readable** -- The database stores the API key and custom headers, which may carry session credentials. The file was created with the default umask, leaving it readable by other users on the same machine, and its SQLite sidecars (`-journal`, `-wal`, `-shm`) shared the exposure. Files are now restricted to the owner, and databases created by earlier versions are tightened on startup.
 - **Frontend caches could hold session headers** -- The settings cache, export and import skipped only the API key. Custom headers, which can carry session credentials, reached `localStorage` and exported JSON files. The sensitive-key list is now defined once and shared by all three paths.
 - **Cross-platform launch configuration** -- The documented dev command (`fastapi dev src/main.py`) failed outside Windows with `ModuleNotFoundError: No module named 'src'`, and the VS Code launch configuration hard-coded a Windows interpreter path. The package now has explicit `__init__.py` files, the interpreter is resolved per platform, and development tasks are available for both servers.
+- **Release notes were published empty** -- The release job extracted the changelog with an `awk` range pattern whose start and end both matched the version heading, so the range covered only that one line and the following `head -n -1` removed it, leaving a zero-byte file. Nine consecutive releases shipped with no release notes. The extraction now captures the section body explicitly and fails the job when a section is missing, instead of publishing empty notes.
 
 ### Changed
 - **Specs-first workflow enforced** -- AI coding guidelines now require reading acceptance criteria before writing tests or code, and mandate inline `Covers:` annotations on new tests.
 - **Traceability checker rewritten** -- Reports deferred criteria separately, validates that every deferred entry exists and is still unimplemented, and prints actionable guidance.
+- **CI now runs the full local check set** -- `ruff format --check`, `ruff check` and the traceability gate previously ran only on developer machines, so lint drift and untraced work could reach `main` unflagged. Both are now enforced in CI, and the bundle job depends on the traceability result.
 
 ### Changed Files
 - `backend/src/integrations/openai_compat.py` -- `extra_headers` support, header merge order, empty-`choices` tolerance.
