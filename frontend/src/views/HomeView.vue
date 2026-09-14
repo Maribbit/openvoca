@@ -106,7 +106,7 @@
         <!-- Footer links -->
         <div class="flex items-center gap-4 text-inkLight/25">
           <a
-            href="https://github.com/Maribbit/OpenVoca"
+            href="https://github.com/Maribbit/openvoca"
             target="_blank"
             rel="noopener noreferrer"
             class="transition-colors hover:text-inkLight/60"
@@ -443,7 +443,7 @@
               >v{{ appVersion }}</span
             >
             <a
-              href="https://github.com/Maribbit/OpenVoca"
+              href="https://github.com/Maribbit/openvoca"
               target="_blank"
               rel="noopener noreferrer"
               class="text-inkLight/40 transition-colors hover:text-inkLight"

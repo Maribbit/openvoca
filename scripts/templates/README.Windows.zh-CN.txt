@@ -42,5 +42,5 @@ OpenVoca 会在你的记忆消退前重新呈现不熟悉的单词，
 
 支持与更新
 ----------
-GitHub:   https://github.com/Maribbit/OpenVoca
-发布页：  https://github.com/Maribbit/OpenVoca/releases
+GitHub:   https://github.com/Maribbit/openvoca
+发布页：  https://github.com/Maribbit/openvoca/releases

@@ -14,7 +14,7 @@ Only the latest release is actively maintained with security updates.
 If you discover a security vulnerability, please report it responsibly:
 
 1. **Do not** open a public GitHub issue.
-2. Open a [GitHub Security Advisory](https://github.com/Maribbit/OpenVoca/security/advisories/new) (preferred), or contact the maintainers directly.
+2. Open a [GitHub Security Advisory](https://github.com/Maribbit/openvoca/security/advisories/new) (preferred), or contact the maintainers directly.
 3. Include a description of the vulnerability, steps to reproduce, and potential impact.
 
 We will acknowledge the report within 48 hours and aim to provide a fix or mitigation within 7 days for critical issues.

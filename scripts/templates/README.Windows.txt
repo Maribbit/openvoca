@@ -42,5 +42,5 @@ directory. Back it up to preserve your learning progress across updates.
 
 SUPPORT & UPDATES
 -----------------
-GitHub:   https://github.com/Maribbit/OpenVoca
-Releases: https://github.com/Maribbit/OpenVoca/releases
+GitHub:   https://github.com/Maribbit/openvoca
+Releases: https://github.com/Maribbit/openvoca/releases

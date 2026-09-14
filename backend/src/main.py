@@ -51,7 +51,7 @@ from src.services.dictionary import lookup as dict_lookup
 # Update check
 # ---------------------------------------------------------------------------
 
-_GITHUB_REPO = "Maribbit/OpenVoca"
+_GITHUB_REPO = "Maribbit/openvoca"
 
 _update_info: dict = {
     "checked": False,

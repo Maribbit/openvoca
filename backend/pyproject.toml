@@ -16,8 +16,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Maribbit/OpenVoca"
-Repository = "https://github.com/Maribbit/OpenVoca"
+Homepage = "https://github.com/Maribbit/openvoca"
+Repository = "https://github.com/Maribbit/openvoca"
 
 [dependency-groups]
 dev = [
