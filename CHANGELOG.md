@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.10.1
+
+Date: 2026-09-14
+
+### Fixed
+- **Repository links pointed at the old name** -- The repository moved to `Maribbit/openvoca`, so every reference to the previous casing went through a redirect. The update check paid that hop on each startup, and package metadata advertised the stale name. All references and the git remote now use the canonical lowercase form.
+- **Changelog extraction is now a script** -- Replaced the inline shell extraction with `scripts/extract_changelog.py`. Passing a tag whose section is missing now fails the job instead of publishing empty notes; the previous guard was added in v0.10.0, but the extraction itself still relied on an `awk` range whose end pattern also matched its start line, and on `head -n -1`, which is GNU-only and errors on macOS. Published notes no longer carry surrounding blank lines.
+
+### Added
+- **Release tooling test coverage** -- The release scripts ran without any tests, which is how nine consecutive releases came to be published with empty notes while CI reported success. `backend/tests/test_release_process.py` now covers changelog extraction, the repair tool's decision rules, and version consistency across the three version sources.
+- **`scripts/sync_release_notes.py`** -- Repairs releases already published with empty notes, filling only empty bodies unless `--all` is passed. Its decision rules are factored out so they can be tested without a network.
+- **`docs/specs/release-process.md`** -- Version consistency, release note extraction, and the repair tool as acceptance criteria.
+
+### Changed
+- **Version consistency is enforced** -- `RELEASE.md` required the three version sources to stay in sync, but nothing checked it, so a bump that missed one file would ship silently mislabelled artifacts. A test now fails when they disagree.
+- **CI imports the release scripts via `pythonpath`** -- `backend/pyproject.toml` adds `../scripts` so the suite can import tooling that operates on the repository as a whole.
+
+### Changed Files
+- `scripts/extract_changelog.py` -- New; section extraction with explicit failure semantics.
+- `scripts/sync_release_notes.py` -- New; `plan_updates()` factored out of `main()` for testability.
+- `backend/tests/test_release_process.py` -- New; 25 tests covering both scripts and version consistency.
+- `backend/pyproject.toml` -- `pythonpath` includes `../scripts`; version bumped.
+- `docs/specs/release-process.md`, `docs/specs/README.md` -- New spec and index entry.
+- `.github/workflows/ci.yml` -- Release job calls the extraction script.
+- `VERSION`, `frontend/package.json` -- Version bumped.
+- `backend/src/main.py`, `frontend/src/views/HomeView.vue`, `frontend/package.json`, `scripts/templates/`, `SECURITY.md` -- Canonical repository URL.
+
 ## v0.10.0
 
 Date: 2026-09-13
