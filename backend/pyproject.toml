@@ -1,6 +1,6 @@
 [project]
 name = "openvoca-backend"
-version = "0.10.0"
+version = "0.10.1"
 description = "Backend for OpenVoca — LLM-powered vocabulary learning through contextual reading"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -27,4 +27,6 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = "."
+# "../scripts" lets the test suite import the release tooling, which lives
+# outside the backend package because it operates on the repository as a whole.
+pythonpath = [".", "../scripts"]

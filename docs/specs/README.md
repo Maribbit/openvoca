@@ -19,3 +19,4 @@
 - `settings-shell.md`：设置、密钥存储与交互、应用壳、更新提示、静态入口和统计页交互。
 - `provider-generation.md`：Prompt 构造、LLM provider、OpenAI-compatible client 和生成 API。
 - `deployment.md`：分发一致性契约、启动可见性、访问控制、暴露面收敛和版本注入。
+- `release-process.md`：版本号一致性、发布说明提取与修复工具。

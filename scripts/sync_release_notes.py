@@ -52,6 +52,37 @@ def _request(method, path, token, payload=None):
         return exc.code, None
 
 
+def plan_updates(releases, changelog, overwrite=False):
+    """Classify each release, sorted by tag.
+
+    Returns ``(release, status, body)`` triples where status is one of:
+
+    - ``update``    the body should be written from the changelog
+    - ``keep``      a hand-written body is preserved
+    - ``unchanged`` the body already matches the changelog
+    - ``missing``   the changelog has no section for this tag
+
+    Kept separate from the network calls so the decision rules can be tested
+    without touching a real repository.
+    """
+    plan = []
+    for release in sorted(releases, key=lambda r: r.get("tag_name", "")):
+        tag = release.get("tag_name", "")
+        existing = (release.get("body") or "").strip()
+        body = extract(changelog, tag)
+
+        if not body:
+            plan.append((release, "missing", ""))
+        elif existing == body:
+            # Already correct, so there is nothing to write in any mode.
+            plan.append((release, "unchanged", body))
+        elif existing and not overwrite:
+            plan.append((release, "keep", existing))
+        else:
+            plan.append((release, "update", body))
+    return plan
+
+
 def main(argv):
     overwrite = "--all" in argv
     dry_run = "--dry-run" in argv
@@ -71,24 +102,22 @@ def main(argv):
 
     updated = skipped = missing = 0
 
-    for release in sorted(releases, key=lambda r: r["tag_name"]):
+    for release, action, body in plan_updates(releases, changelog, overwrite):
         tag = release["tag_name"]
-        existing = (release.get("body") or "").strip()
 
-        if existing and not overwrite:
-            print(f"  {tag:10} kept (already has notes, {len(existing)} bytes)")
+        if action == "keep":
+            print(f"  {tag:10} kept (already has notes, {len(body)} bytes)")
             skipped += 1
             continue
 
-        body = extract(changelog, tag)
-        if not body:
-            print(f"  {tag:10} SKIP - no section in {CHANGELOG}")
-            missing += 1
-            continue
-
-        if existing == body:
+        if action == "unchanged":
             print(f"  {tag:10} unchanged ({len(body)} bytes)")
             skipped += 1
+            continue
+
+        if action == "missing":
+            print(f"  {tag:10} SKIP - no section in {CHANGELOG}")
+            missing += 1
             continue
 
         if dry_run:
