@@ -18,5 +18,6 @@
 - `dictionary-tokenizer.md`：ECDICT 查询、分词、词性、词元和文本还原。
 - `settings-shell.md`：设置、密钥存储与交互、应用壳、更新提示、静态入口和统计页交互。
 - `provider-generation.md`：Prompt 构造、LLM provider、OpenAI-compatible client 和生成 API。
-- `deployment.md`：分发一致性契约、启动可见性、访问控制、暴露面收敛和版本注入。
+- `private-deployment.md`：**当前生效的部署规格**。自有机器 + 私有网络，代码与数据分离、启动期模式自检、部署原子性、进程监督、更新请求与执行分离。
+- `deployment.md`：公网 VPS 方案，**已搁置**。保留其中的分发一致性不变量，以及将来若需公网暴露时的访问控制条款。
 - `release-process.md`：版本号一致性、发布说明提取与修复工具。
