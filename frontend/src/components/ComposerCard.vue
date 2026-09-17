@@ -328,14 +328,33 @@
       </div>
     </div>
 
-    <!-- Generate button -->
-    <div class="flex flex-col items-center mt-8">
-      <button
-        @click="emitGenerate"
-        class="px-8 py-3 bg-ink text-paper rounded-full text-sm font-medium shadow-sm hover:bg-ink/85 active:scale-95 transition-all cursor-pointer"
+    <!-- Primary action, with room either side for the parent's own controls.
+         The button stays here because it owns what generating means; only the
+         flanking controls are supplied from outside. Order handles the narrow
+         case, where the controls share a row and the button takes its own. -->
+    <div
+      class="mt-8 flex w-full flex-wrap items-center justify-center gap-x-5 gap-y-2"
+    >
+      <div
+        class="order-1 flex flex-1 items-center justify-around gap-1 sm:flex-none sm:justify-end"
       >
-        {{ generateButtonLabel }}
-      </button>
+        <slot name="actions-before" />
+      </div>
+      <div
+        class="order-3 mt-1 flex w-full justify-center sm:order-2 sm:mt-0 sm:w-auto"
+      >
+        <button
+          @click="emitGenerate"
+          class="px-8 py-3 bg-ink text-paper rounded-full text-sm font-medium shadow-sm hover:bg-ink/85 active:scale-95 transition-all cursor-pointer"
+        >
+          {{ generateButtonLabel }}
+        </button>
+      </div>
+      <div
+        class="order-2 flex flex-1 items-center justify-around gap-1 sm:order-3 sm:flex-none sm:justify-start"
+      >
+        <slot name="actions-after" />
+      </div>
     </div>
   </div>
 </template>

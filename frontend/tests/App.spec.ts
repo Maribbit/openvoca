@@ -287,7 +287,7 @@ describe("App.vue update banner", () => {
     await router.isReady();
     await flushPromises();
 
-    expect(wrapper.text()).toContain("MENU");
+    expect(wrapper.text()).toContain("Settings");
     expect(wrapper.text()).toContain("Generate next sentence");
 
     await router.push("/settings");
@@ -303,8 +303,8 @@ describe("App.vue update banner", () => {
     await router.push("/");
     await flushPromises();
 
-    expect(wrapper.text()).toContain("菜单");
+    expect(wrapper.text()).toContain("设置");
     expect(wrapper.text()).toContain("生成下一句");
-    expect(wrapper.text()).not.toContain("MENU");
+    expect(wrapper.text()).not.toContain("Settings");
   });
 });
