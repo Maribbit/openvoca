@@ -1,38 +1,9 @@
 <template>
-  <div class="min-h-zoom-screen bg-paper p-8 text-ink antialiased">
+  <div class="min-h-zoom-screen bg-paper px-8 pb-32 pt-10 text-ink antialiased">
     <div class="mx-auto max-w-3xl">
-      <!-- Header -->
-      <header
-        class="sticky top-0 z-30 -mx-8 mb-8 flex min-h-16 items-center justify-between gap-4 border-b border-ink/8 bg-paper/95 px-8 py-3 backdrop-blur-md"
-      >
-        <div class="min-w-0">
-          <h1 class="font-serif text-2xl leading-tight tracking-wide text-ink">
-            {{ i18nMessages.settings }}
-          </h1>
-          <p class="mt-0.5 hidden text-xs text-inkLight sm:block">
-            {{ i18nMessages.settingsSubtitle }}
-          </p>
-        </div>
-        <router-link
-          to="/"
-          class="flex shrink-0 items-center gap-2 rounded-full border border-ink/10 bg-surface px-4 py-2 text-sm font-medium text-ink transition-all hover:border-ink/18 hover:shadow-sm"
-        >
-          <svg
-            class="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          {{ i18nMessages.backToReading }}
-        </router-link>
-      </header>
+      <!-- Kept first in the document so the heading still leads the page for
+           assistive tech; the visible label lives in the dock below. -->
+      <h1 class="sr-only">{{ i18nMessages.settings }}</h1>
 
       <div class="space-y-10">
         <!-- ===== Interface ===== -->
@@ -632,9 +603,50 @@
         </section>
       </div>
 
-      <!-- Bottom padding -->
-      <div class="h-16"></div>
     </div>
+
+    <!-- Title and action sit together here, so the control stays in reach while
+         the settings list scrolls instead of living in a bar at the top. -->
+    <footer
+      data-testid="settings-dock"
+      class="fixed inset-x-0 bottom-0 z-30 border-t border-ink/8 bg-paper/95 backdrop-blur-md"
+      style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+    >
+      <div
+        class="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-2.5 sm:px-8"
+      >
+        <div class="min-w-0">
+          <p
+            class="truncate font-serif text-lg leading-tight tracking-wide text-ink"
+          >
+            {{ i18nMessages.settings }}
+          </p>
+          <p class="hidden truncate text-xs text-inkLight sm:block">
+            {{ i18nMessages.settingsSubtitle }}
+          </p>
+        </div>
+        <router-link
+          to="/"
+          data-testid="settings-back"
+          class="tap-target shrink-0 gap-2 rounded-full border border-ink/10 bg-surface px-5 text-sm font-medium text-ink transition-colors hover:border-ink/18 active:bg-ink/5"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          {{ i18nMessages.backToReading }}
+        </router-link>
+      </div>
+    </footer>
   </div>
 </template>
 

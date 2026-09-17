@@ -1,144 +1,9 @@
 <template>
-  <div class="min-h-zoom-screen bg-paper p-8 text-ink antialiased">
+  <div class="min-h-zoom-screen bg-paper px-8 pb-32 pt-10 text-ink antialiased">
     <div class="mx-auto max-w-5xl">
-      <header
-        class="sticky top-0 z-30 -mx-8 mb-8 flex min-h-16 items-center justify-between gap-4 border-b border-ink/8 bg-paper/95 px-8 py-3 backdrop-blur-md"
-      >
-        <div class="min-w-0">
-          <h1 class="font-serif text-2xl leading-tight tracking-wide text-ink">
-            {{ i18nMessages.vocabulary }}
-          </h1>
-          <p class="mt-0.5 hidden text-xs text-inkLight sm:block">
-            {{ words.length }} {{ i18nMessages.showingWords }}
-          </p>
-        </div>
-        <div class="flex shrink-0 items-center gap-2">
-          <input
-            ref="importFileInput"
-            type="file"
-            accept=".csv"
-            class="hidden"
-            @change="onFileSelected"
-          />
-          <button
-            type="button"
-            class="flex items-center gap-2 rounded-full border border-ink/10 bg-surface px-4 py-2 text-sm font-medium text-ink transition-all hover:border-ink/18 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-            @click="importFileInput?.click()"
-            :disabled="isImporting || isLoading"
-            :title="i18nMessages.importVocabulary"
-            :aria-label="i18nMessages.importVocabulary"
-          >
-            <svg
-              v-if="isImporting"
-              class="h-4 w-4 animate-spin text-ink"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <svg
-              v-else
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2m-4-8-4-4m0 0L8 8m4-4v12"
-              />
-            </svg>
-            <span class="hidden sm:inline">{{
-              i18nMessages.importVocabulary
-            }}</span>
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-2 rounded-full border border-ink/10 bg-surface px-4 py-2 text-sm font-medium text-ink transition-all hover:border-ink/18 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-            @click="handleExport"
-            :disabled="isExporting || isLoading"
-            :title="i18nMessages.exportVocabulary"
-            :aria-label="i18nMessages.exportVocabulary"
-          >
-            <svg
-              v-if="isExporting"
-              class="h-4 w-4 animate-spin text-ink"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <svg
-              v-else
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"
-              />
-            </svg>
-            <span class="hidden sm:inline">{{
-              i18nMessages.exportVocabulary
-            }}</span>
-          </button>
-          <router-link
-            to="/"
-            class="flex items-center gap-2 rounded-full border border-ink/10 bg-surface px-4 py-2 text-sm font-medium text-ink transition-all hover:border-ink/18 hover:shadow-sm"
-            :title="i18nMessages.backToReading"
-            :aria-label="i18nMessages.backToReading"
-          >
-            <svg
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            <span class="hidden sm:inline">{{
-              i18nMessages.backToReading
-            }}</span>
-          </router-link>
-        </div>
-      </header>
+      <!-- Kept first in the document so the heading still leads the page for
+           assistive tech; the visible label lives in the dock below. -->
+      <h1 class="sr-only">{{ i18nMessages.vocabulary }}</h1>
 
       <!-- Import result banner -->
       <Transition name="menu-fade">
@@ -492,6 +357,158 @@
         </div>
       </div>
     </div>
+
+    <!-- Title and actions sit together here, so they stay in reach while the
+         list scrolls instead of occupying a bar at the top of the page. -->
+    <footer
+      data-testid="stats-dock"
+      class="fixed inset-x-0 bottom-0 z-30 border-t border-ink/8 bg-paper/95 backdrop-blur-md"
+      style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+    >
+      <div
+        class="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-2.5 sm:px-8"
+      >
+        <div class="min-w-0">
+          <p
+            class="truncate font-serif text-lg leading-tight tracking-wide text-ink"
+          >
+            {{ i18nMessages.vocabulary }}
+          </p>
+          <p class="truncate text-xs text-inkLight">
+            {{ words.length }} {{ i18nMessages.showingWords }}
+          </p>
+        </div>
+        <div class="flex shrink-0 items-center gap-1">
+          <input
+            ref="importFileInput"
+            type="file"
+            accept=".csv"
+            class="hidden"
+            @change="onFileSelected"
+          />
+          <button
+            type="button"
+            data-testid="stats-import"
+            class="tap-target gap-2 rounded-full border border-ink/10 bg-surface text-sm font-medium text-ink transition-colors hover:border-ink/18 active:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
+            @click="importFileInput?.click()"
+            :disabled="isImporting || isLoading"
+            :title="i18nMessages.importVocabulary"
+            :aria-label="i18nMessages.importVocabulary"
+          >
+            <svg
+              v-if="isImporting"
+              class="h-5 w-5 animate-spin text-ink"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <svg
+              v-else
+              class="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2m-4-8-4-4m0 0L8 8m4-4v12"
+              />
+            </svg>
+            <span class="hidden sm:inline">{{
+              i18nMessages.importVocabulary
+            }}</span>
+          </button>
+          <button
+            type="button"
+            data-testid="stats-export"
+            class="tap-target gap-2 rounded-full border border-ink/10 bg-surface text-sm font-medium text-ink transition-colors hover:border-ink/18 active:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
+            @click="handleExport"
+            :disabled="isExporting || isLoading"
+            :title="i18nMessages.exportVocabulary"
+            :aria-label="i18nMessages.exportVocabulary"
+          >
+            <svg
+              v-if="isExporting"
+              class="h-5 w-5 animate-spin text-ink"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <svg
+              v-else
+              class="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"
+              />
+            </svg>
+            <span class="hidden sm:inline">{{
+              i18nMessages.exportVocabulary
+            }}</span>
+          </button>
+          <router-link
+            to="/"
+            data-testid="stats-back"
+            class="tap-target gap-2 rounded-full border border-ink/10 bg-surface text-sm font-medium text-ink transition-colors hover:border-ink/18 active:bg-ink/5 sm:px-4"
+            :title="i18nMessages.backToReading"
+            :aria-label="i18nMessages.backToReading"
+          >
+            <svg
+              class="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            <span class="hidden sm:inline">{{
+              i18nMessages.backToReading
+            }}</span>
+          </router-link>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>
 
