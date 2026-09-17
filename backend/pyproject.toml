@@ -1,6 +1,6 @@
 [project]
 name = "openvoca-backend"
-version = "0.10.1"
+version = "0.10.2"
 description = "Backend for OpenVoca — LLM-powered vocabulary learning through contextual reading"
 readme = "README.md"
 requires-python = ">=3.12"

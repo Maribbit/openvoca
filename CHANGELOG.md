@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.10.2
+
+Date: 2026-09-17
+
+### Added
+- **A capability layer for touch and pointer input** -- The interface was designed for a mouse with a keyboard nearby, which made several controls unusable on a phone. `main.css` now defines the shared pieces once instead of leaving each component to reinvent them: `.tap-target` for controls that need a finger-sized box at every width, `.tap-finger` for controls that only need it under `@media (hover: none)` so pointer layouts keep their compact density, `.pointer-only` for affordances that have no meaning without a cursor, `.sheet-rise` for the bottom sheet animation, and `.dock-divide` to drop a dock's top border once the layout is wide enough that the dock no longer floats over content.
+- **Bottom docks on the reading, settings and stats views** -- Primary navigation and page actions now live in a fixed bottom bar rather than a header. On a phone the top of the screen is the hardest place to reach and a header scrolls away, so every page keeps its controls under the thumb and within reach at all times.
+
+### Fixed
+- **Controls that were invisible or untappable on touch** -- The settings and vocabulary buttons used `opacity: 0` with a `group-hover:opacity-100` reveal. Touch devices never hover, so those controls were present but permanently invisible. The capability layer forces them visible when no pointer is available. Alongside that, nineteen controls across the composer, reading dock and definition panel were below the 44px minimum touch target; the reading dock and definition panel sized themselves for a cursor and were tapped without aiming.
+- **Vocabulary statistics were unreadable on narrow screens** -- The table depended on a lemma column that collapsed to zero width at 390px, taking the word itself with it. The table is now a card list: the lemma sits on its own row with its action beside it, and the familiarity and cooldown figures wrap underneath. Cards also removed the horizontal scrolling the table needed. `statsLemma` is gone from the string table because the column header it labelled no longer exists.
+- **The model settings overflowed on narrow screens** -- Three rows exceeded the viewport (the API key row, the custom header rows, and the zoom selector) because flex items will not shrink below their intrinsic width unless explicitly allowed to. Grid tracks and flex children now use `minmax(0, 1fr)` and `min-w-0`, the API key and header rows stack below 640px, and the header row's remove action becomes an icon button rather than forcing the row wider than the screen.
+- **Definition lines ran together into a single line** -- The previous release introduced a wrapper element around the definition lines whose `display: flex` and `flex-direction: column` were declared inside `@media (hover: none)`. On desktop the wrapper was therefore not a flex container at all, so its inline children flowed together: several senses rendered as one unbroken string with no separation between the Chinese and English text. The stacking rules are now unconditional and only the height cap and scrolling remain touch-specific.
+- **The reading settings panel covered the text it configured** -- A top panel that pushed the sentence down was replaced by a bottom sheet, so changing the font size or spacing no longer moves the text being adjusted.
+
+### Changed
+- **The reading view was redesigned for touch** -- The header is gone and the brand moved into the normal content flow, which returns that vertical space to the sentence. Reading controls, previously a row of icons in the header, are now a dock with the primary action separated from the secondary ones.
+- **The composer controls gathered around the primary button** -- Settings and stats sit on one side, about and GitHub on the other, with the generate button between them, instead of the actions appearing above the button and the metadata below it. On wide screens the arrangement is a single row; below 640px it becomes two rows with the primary action on top. `ComposerCard` exposes `actions-before` and `actions-after` slots so the view can place them without the component knowing which controls exist.
+- **The reading settings bar became a bottom sheet** -- Its three rows (font size, line spacing, theme) keep the label-left, control-right arrangement, and its buttons use the shared touch target.
+
+### Changed Files
+- `frontend/src/main.css` -- Capability layer: touch targets, sheet animation, dock divider.
+- `frontend/src/views/HomeView.vue` -- Header removed, reading dock, brand in flow, bottom sheet wiring.
+- `frontend/src/views/SettingsView.vue` -- Bottom dock, narrow-screen overflow fixes, icon remove action.
+- `frontend/src/views/StatsView.vue` -- Table replaced by a card list, bottom dock.
+- `frontend/src/components/ComposerCard.vue` -- `actions-before` / `actions-after` slots, touch sizing.
+- `frontend/src/components/DefinitionToast.vue` -- Unconditional line stacking, touch sizing for its controls.
+- `frontend/src/components/ReadingSettingsBar.vue` -- Top panel converted to a bottom sheet.
+- `frontend/src/composables/useI18n.ts` -- `statsLemma` removed with the column header.
+- `frontend/tests/StatsView.spec.ts`, `frontend/tests/App.spec.ts` -- Updated for the card list and dock layout.
+- `VERSION`, `frontend/package.json`, `backend/pyproject.toml` -- Version bumped.
+
 ## v0.10.1
 
 Date: 2026-09-14
