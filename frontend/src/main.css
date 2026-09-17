@@ -102,7 +102,65 @@
 
 @layer utilities {
   .min-h-zoom-screen {
+    /* 100vh includes the mobile browser chrome, which makes a centred layout
+       sit lower than the visible area. dvh tracks the actual viewport. */
     min-height: calc(100vh / var(--app-zoom, 1));
+    min-height: calc(100dvh / var(--app-zoom, 1));
+  }
+
+  /* Comfortable finger target. The icon itself stays visually small; only the
+     tappable area grows, so controls do not look heavier. */
+  .tap-target {
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    display: inline-flex;
+  }
+
+  /* Same guarantee, but only where a finger is the input device. Use this where
+     an unconditional 44px box would loosen an otherwise compact desktop row. */
+  @media (hover: none) {
+    .tap-finger {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+
+  /* Reveal-on-hover only works where a pointer exists. On touch there is no
+     hover, so such controls stay at opacity 0 and are unreachable: they are
+     also sized for a cursor rather than a finger. Both problems are fixed at
+     the pattern level so new instances stay safe without extra classes. */
+  @media (hover: none) {
+    .opacity-0.group-hover\:opacity-100 {
+      opacity: 1;
+      color: var(--color-inkLight);
+      min-width: 44px;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      display: inline-flex;
+    }
+  }
+
+  /* Keyboard affordances are meaningless without a keyboard. */
+  .pointer-only {
+    display: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pointer-only {
+      display: inline;
+    }
+  }
+
+  /* The dock is a solid bar on touch, where it sits over the sentence, and a
+     floating cluster where a pointer is available. The divider only earns its
+     visual weight in the former case. */
+  @media (hover: hover) and (pointer: fine) {
+    .dock-divide {
+      border-top-color: transparent;
+    }
   }
 
   .sentence-fade {
@@ -111,6 +169,19 @@
 
   .menu-fade {
     animation: menu-fade 320ms ease-out;
+  }
+
+  .sheet-rise {
+    animation: sheet-rise 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
 

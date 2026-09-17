@@ -1,6 +1,6 @@
 <template>
   <div
-    class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center"
+    class="def-anchor pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3"
   >
     <Transition name="def-toast">
       <div
@@ -9,7 +9,7 @@
         @click.stop
       >
         <div
-          class="flex flex-col gap-2 rounded-xl border border-ink/5 bg-surface px-4 py-2.5 shadow-lg dark:border-white/10"
+          class="def-toast flex flex-col gap-2 rounded-xl border border-ink/5 bg-surface px-4 py-2.5 shadow-lg dark:border-white/10"
         >
           <!-- Loading State -->
           <span
@@ -196,22 +196,24 @@
                 </button>
               </template>
             </span>
-            <template v-if="displayMode !== 'en' && entry.translation">
-              <span
-                v-for="(line, i) in splitLines(entry.translation)"
-                :key="'zh-' + i"
-                class="font-sans text-sm leading-snug text-inkLight"
-                >{{ line }}</span
-              >
-            </template>
-            <template v-if="displayMode !== 'zh' && entry.definition">
-              <span
-                v-for="(line, i) in splitLines(entry.definition)"
-                :key="'en-' + i"
-                class="font-sans text-sm leading-snug text-inkLight"
-                >{{ line }}</span
-              >
-            </template>
+            <div class="def-lines">
+              <template v-if="displayMode !== 'en' && entry.translation">
+                <span
+                  v-for="(line, i) in splitLines(entry.translation)"
+                  :key="'zh-' + i"
+                  class="font-sans text-sm leading-snug text-inkLight"
+                  >{{ line }}</span
+                >
+              </template>
+              <template v-if="displayMode !== 'zh' && entry.definition">
+                <span
+                  v-for="(line, i) in splitLines(entry.definition)"
+                  :key="'en-' + i"
+                  class="font-sans text-sm leading-snug text-inkLight"
+                  >{{ line }}</span
+                >
+              </template>
+            </div>
           </span>
           <span v-else class="flex min-w-0 flex-col gap-0.5">
             <span class="flex items-center gap-2">
@@ -394,7 +396,7 @@
             >
               <button
                 type="button"
-                class="rounded-full px-3.5 py-1 text-xs font-medium transition-all"
+                class="def-choice rounded-full px-3.5 py-1 text-xs font-medium transition-all"
                 :class="
                   !isMarked
                     ? 'bg-ink text-paper shadow-sm dark:bg-white dark:text-black'
@@ -406,7 +408,7 @@
               </button>
               <button
                 type="button"
-                class="rounded-full px-3.5 py-1 text-xs font-medium transition-all"
+                class="def-choice rounded-full px-3.5 py-1 text-xs font-medium transition-all"
                 :class="
                   isMarked
                     ? 'bg-highlight text-ink shadow-sm'
@@ -570,6 +572,18 @@
 </script>
 
 <style scoped>
+  /* Clears the reading dock, which is two rows on narrow screens and a single
+     row once the controls fit beside the primary button. */
+  .def-anchor {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 132px);
+  }
+
+  @media (min-width: 640px) {
+    .def-anchor {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+    }
+  }
+
   .def-toast-enter-active,
   .def-toast-leave-active {
     transition:
@@ -580,5 +594,35 @@
   .def-toast-leave-to {
     transform: translateY(120%);
     opacity: 0;
+  }
+
+  /* This panel is transient and its controls were sized for a cursor. On touch
+     every control gets a finger-sized box: the knowledge choice is the primary
+     action and the rest are references, but all are tapped without aiming.
+     The definition text is capped and scrolls, because a word with several
+     senses would otherwise push the panel over most of the sentence. */
+  @media (hover: none) {
+    .def-toast button,
+    .def-toast a {
+      min-height: 40px;
+      min-width: 40px;
+    }
+    .def-toast a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .def-toast .def-choice {
+      min-height: 44px;
+      padding-inline: 1.25rem;
+    }
+    .def-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 132px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
   }
 </style>

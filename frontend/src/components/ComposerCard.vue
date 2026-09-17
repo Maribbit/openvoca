@@ -33,13 +33,13 @@
           >
           <button
             type="button"
-            class="text-inkLight/40 hover:text-inkLight transition-colors cursor-pointer disabled:opacity-50"
+            class="tap-target rounded-full text-inkLight transition-colors active:bg-ink/8 disabled:opacity-50"
             :title="t.composerRefreshSuggestions"
             @click="loadTargetWords"
             :disabled="isLoadingWords"
           >
             <svg
-              class="w-3.5 h-3.5"
+              class="w-5 h-5"
               :class="{
                 'animate-spin text-inkLight opacity-70': isLoadingWords,
               }"
@@ -82,11 +82,11 @@
           <button
             v-if="!addingWord"
             type="button"
-            class="inline-flex items-center justify-center w-7 h-7 rounded-full border border-dashed border-ink/15 text-inkLight hover:border-ink/30 hover:text-ink transition-all cursor-pointer"
+            class="tap-target rounded-full border border-dashed border-ink/15 text-inkLight hover:border-ink/30 hover:text-ink transition-all cursor-pointer"
             @click="startAddWord"
           >
             <svg
-              class="w-3 h-3"
+              class="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -138,8 +138,9 @@
               !supplementOpen &&
               !customScenario.trim()
             "
+            type="button"
             @click="supplementOpen = true"
-            class="text-xs text-inkLight/50 hover:text-inkLight transition-colors cursor-pointer"
+            class="tap-finger inline-flex items-center text-xs text-inkLight transition-colors hover:text-ink cursor-pointer"
           >
             + {{ t.composerAddDetails }}
           </button>
@@ -185,7 +186,7 @@
             "
             type="button"
             @click="riddleSupplementOpen = true"
-            class="text-xs text-inkLight/50 hover:text-inkLight transition-colors cursor-pointer"
+            class="tap-finger inline-flex items-center text-xs text-inkLight transition-colors hover:text-ink cursor-pointer"
           >
             + {{ t.composerAddDetails }}
           </button>
@@ -203,7 +204,7 @@
       <div>
         <button
           @click="difficultyOpen = !difficultyOpen"
-          class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-inkLight hover:text-ink transition-colors cursor-pointer w-full"
+          class="tap-finger flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-inkLight hover:text-ink transition-colors cursor-pointer w-full"
         >
           <svg
             class="w-3 h-3 transition-transform"
@@ -252,7 +253,7 @@
       <div>
         <button
           @click="lengthOpen = !lengthOpen"
-          class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-inkLight hover:text-ink transition-colors cursor-pointer w-full"
+          class="tap-finger flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-inkLight hover:text-ink transition-colors cursor-pointer w-full"
         >
           <svg
             class="w-3 h-3 transition-transform"
@@ -300,7 +301,7 @@
       <div>
         <button
           @click="previewOpen = !previewOpen"
-          class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-inkLight hover:text-ink transition-colors cursor-pointer w-full"
+          class="tap-finger flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-inkLight hover:text-ink transition-colors cursor-pointer w-full"
         >
           <svg
             class="w-3 h-3 transition-transform"
@@ -974,5 +975,25 @@
   }
   .option-card.active .opt-desc {
     opacity: 0.65;
+  }
+
+  /* Touch devices need finger-sized targets where a cursor needs far less.
+     Applied only when no pointer is present so the desktop layout is unchanged. */
+  @media (hover: none) {
+    .mode-toggle,
+    .suggestion-chip,
+    .custom-chip,
+    .option-card {
+      min-height: 44px;
+    }
+    .suggestion-chip,
+    .custom-chip {
+      padding-block: 10px;
+    }
+    .custom-chip .remove-btn {
+      width: 26px;
+      height: 26px;
+      font-size: 14px;
+    }
   }
 </style>

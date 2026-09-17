@@ -2,52 +2,24 @@
   <div
     class="relative min-h-zoom-screen overflow-hidden bg-paper font-sans text-ink transition-colors duration-300"
   >
+    <!-- Top bar exists only in the composer: once reading starts it would sit
+         over the text, and its corners are the hardest area to reach. -->
     <header
-      class="group fixed inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 uppercase tracking-[0.45em] text-inkLight/50 md:px-10"
+      v-if="showComposer"
+      class="fixed inset-x-0 top-0 z-10 flex items-center justify-between px-4 py-3 text-inkLight md:px-10"
       :class="uiHeaderSizeClass"
     >
-      <div class="flex flex-1 items-center justify-start gap-1">
+      <div class="flex flex-1 items-center justify-start">
         <router-link
           to="/settings"
-          class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:text-ink"
+          class="tap-target cursor-pointer rounded-full px-4 font-medium uppercase tracking-[0.2em] transition-colors hover:text-ink md:tracking-[0.35em]"
         >
           {{ i18nMessages.menu }}
         </router-link>
-        <button
-          v-if="!showComposer"
-          type="button"
-          data-testid="reading-settings-trigger"
-          class="cursor-pointer rounded-full p-2 transition-all hover:text-ink opacity-0 group-hover:opacity-100 focus:opacity-100"
-          @click="toggleUiPanel"
-          :title="i18nMessages.readingDisplaySettings"
-        >
-          <span class="sr-only">{{ i18nMessages.readingDisplaySettings }}</span>
-          <svg
-            class="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.5"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z"
-            />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.5"
-              d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-            />
-          </svg>
-        </button>
       </div>
 
       <div class="pointer-events-none flex flex-1 items-center justify-center">
-        <span
-          v-if="showComposer"
-          class="font-serif text-[13px] tracking-[0.35em] text-inkLight/40"
+        <span class="font-serif text-[13px] tracking-[0.35em] text-inkLight"
           >OpenVoca</span
         >
       </div>
@@ -55,7 +27,7 @@
       <div class="flex flex-1 items-center justify-end">
         <router-link
           to="/stats"
-          class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:text-ink"
+          class="tap-target cursor-pointer rounded-full px-4 font-medium uppercase tracking-[0.2em] transition-colors hover:text-ink md:tracking-[0.35em]"
         >
           {{ i18nMessages.stats }}
         </router-link>
@@ -71,8 +43,8 @@
     />
 
     <main
-      class="flex min-h-zoom-screen flex-col items-center justify-center px-8 py-24"
-      :class="showComposer ? 'gap-14' : 'gap-7'"
+      class="flex min-h-zoom-screen flex-col items-center justify-center px-8"
+      :class="showComposer ? 'gap-14 py-24' : 'gap-7 pt-10 pb-44'"
     >
       <template v-if="showComposer">
         <ComposerCard @generate="onComposerGenerate" />
@@ -104,15 +76,15 @@
         </Transition>
 
         <!-- Footer links -->
-        <div class="flex items-center gap-4 text-inkLight/25">
+        <div class="flex items-center gap-1 text-inkLight">
           <a
             href="https://github.com/Maribbit/openvoca"
             target="_blank"
             rel="noopener noreferrer"
-            class="transition-colors hover:text-inkLight/60"
+            class="tap-finger inline-flex items-center justify-center rounded-full transition-colors hover:text-ink"
             title="GitHub"
           >
-            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
               <path
                 d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"
               />
@@ -120,12 +92,12 @@
           </a>
           <button
             type="button"
-            class="cursor-pointer transition-colors hover:text-inkLight/60"
+            class="tap-finger inline-flex cursor-pointer items-center justify-center rounded-full transition-colors hover:text-ink"
             :title="i18nMessages.aboutOpenVoca"
             @click="showAbout = true"
           >
             <svg
-              class="h-4 w-4"
+              class="h-5 w-5"
               fill="none"
               stroke="currentColor"
               stroke-width="1.5"
@@ -208,21 +180,42 @@
           @word-click="onWordClick"
         />
 
-        <div v-if="visibleTokens.length > 0" class="flex items-center gap-1">
+      </template>
+    </main>
+
+    <!-- Reading dock. Pinned to the viewport so the controls stay within thumb
+         reach, and so nothing overlays the sentence while reading. -->
+    <footer
+      v-if="!showComposer"
+      class="dock-divide fixed inset-x-0 bottom-0 z-30 border-t border-ink/8 bg-paper/95 backdrop-blur-md"
+      style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+    >
+      <div
+        class="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-x-2 gap-y-1.5 px-4 py-2.5 sm:flex-nowrap sm:gap-x-5 sm:py-2"
+      >
+        <!-- Sentence actions. They share a row with the display and menu
+             controls on narrow screens, and move beside the primary action
+             once the row fits. Order handles the swap so the markup stays in
+             reading order. -->
+        <div
+          class="order-1 flex flex-1 items-center justify-around px-1 sm:flex-none sm:justify-start sm:gap-1"
+        >
           <button
             type="button"
-            class="cursor-pointer rounded-full p-2 transition-colors hover:bg-black/4"
+            data-testid="dock-copy"
+            class="tap-target cursor-pointer rounded-full transition-colors active:bg-ink/8 disabled:cursor-not-allowed disabled:opacity-40"
             :class="
               copyConfirmed
                 ? 'text-emerald-500'
-                : 'text-inkLight/40 hover:text-inkLight'
+                : 'text-inkLight hover:text-ink'
             "
+            :disabled="visibleTokens.length === 0"
             :title="i18nMessages.copySentence"
             @click="copySentence"
           >
             <svg
               v-if="!copyConfirmed"
-              class="h-4 w-4"
+              class="h-5 w-5"
               fill="none"
               stroke="currentColor"
               stroke-width="1.5"
@@ -236,7 +229,7 @@
             </svg>
             <svg
               v-else
-              class="h-4 w-4"
+              class="h-5 w-5"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
@@ -251,18 +244,20 @@
           </button>
           <button
             type="button"
-            class="cursor-pointer rounded-full p-2 transition-colors hover:bg-black/4"
+            data-testid="dock-read-aloud"
+            class="tap-target cursor-pointer rounded-full transition-colors active:bg-ink/8 disabled:cursor-not-allowed disabled:opacity-40"
             :class="
               isSpeaking || ttsLoading
                 ? 'text-ink'
-                : 'text-inkLight/40 hover:text-inkLight'
+                : 'text-inkLight hover:text-ink'
             "
+            :disabled="visibleTokens.length === 0"
             :title="i18nMessages.readAloud"
             @click="readAloud"
           >
             <svg
               v-if="ttsLoading"
-              class="h-4 w-4 animate-pulse"
+              class="h-5 w-5 animate-pulse"
               fill="none"
               stroke="currentColor"
               stroke-width="1.5"
@@ -276,7 +271,7 @@
             </svg>
             <svg
               v-else-if="!isSpeaking"
-              class="h-4 w-4"
+              class="h-5 w-5"
               fill="none"
               stroke="currentColor"
               stroke-width="1.5"
@@ -288,7 +283,7 @@
                 d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
               />
             </svg>
-            <svg v-else class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+            <svg v-else class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
               <path
                 fill-rule="evenodd"
                 d="M4.5 7.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z"
@@ -298,11 +293,63 @@
           </button>
         </div>
 
-        <div class="flex flex-col items-center">
+        <!-- Display and menu. Destinations and preferences that are not part
+             of advancing the sentence. -->
+        <div
+          class="order-2 flex flex-1 items-center justify-around px-1 sm:order-3 sm:flex-none sm:justify-end sm:gap-1"
+        >
+          <button
+            type="button"
+            data-testid="reading-settings-trigger"
+            class="tap-target cursor-pointer rounded-full transition-colors active:bg-ink/8"
+            :class="
+              isUiPanelOpen
+                ? 'bg-ink/8 text-ink'
+                : 'text-inkLight hover:text-ink'
+            "
+            :title="i18nMessages.readingDisplaySettings"
+            @click="toggleUiPanel"
+          >
+            <span class="sr-only">{{
+              i18nMessages.readingDisplaySettings
+            }}</span>
+            <span class="font-serif text-[19px] leading-none">Aa</span>
+          </button>
+
+          <!-- Menu. Destinations that leave the reading flow are kept here so
+               they do not compete with the sentence for attention. -->
+          <button
+            type="button"
+            data-testid="dock-menu"
+            class="tap-target cursor-pointer rounded-full transition-colors active:bg-ink/8"
+            :class="
+              isMenuOpen ? 'bg-ink/8 text-ink' : 'text-inkLight hover:text-ink'
+            "
+            :title="i18nMessages.menu"
+            @click="isMenuOpen = !isMenuOpen"
+          >
+            <span class="sr-only">{{ i18nMessages.menu }}</span>
+            <svg
+              class="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Primary action. Takes its own row until there is room to sit
+             between the two control groups. -->
+        <div
+          class="order-3 flex w-full flex-col items-center sm:order-2 sm:w-auto"
+        >
           <button
             v-if="isRiddleMode && !answerRevealed"
             @click="answerRevealed = true"
-            class="group relative flex items-center justify-center gap-2 rounded-full border border-ink/10 bg-ink/5 px-8 py-3 text-[15px] font-medium tracking-wide text-ink shadow-none transition-all hover:bg-ink/8 hover:shadow-sm active:scale-[0.99] dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
+            class="flex w-full max-w-xs items-center justify-center gap-2 rounded-full border border-ink/10 bg-ink/5 px-8 py-3 text-[15px] font-medium tracking-wide text-ink transition-all hover:bg-ink/8 active:scale-[0.99] dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
           >
             <span>{{ i18nMessages.revealAnswer }}</span>
           </button>
@@ -310,7 +357,7 @@
             v-else
             @click="openProgressSummary"
             :disabled="isLoading || isDrafting || isUiPanelOpen"
-            class="group relative flex items-center justify-center gap-2 rounded-full border border-ink/10 bg-ink/5 px-8 py-3 text-[15px] font-medium tracking-wide text-ink shadow-none transition-all hover:bg-ink/8 hover:shadow-sm active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75 dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
+            class="flex w-full max-w-xs items-center justify-center gap-2 rounded-full border border-ink/10 bg-ink/5 px-8 py-3 text-[15px] font-medium tracking-wide text-ink transition-all hover:bg-ink/8 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75 dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
           >
             <svg
               v-if="isDrafting"
@@ -338,13 +385,117 @@
             }}</span>
             <kbd
               v-if="!isDrafting"
-              class="rounded border border-ink/15 bg-ink/8 px-2 py-0.5 font-mono text-xs font-semibold text-inkLight transition-colors dark:border-white/15 dark:bg-white/10"
+              class="pointer-only rounded border border-ink/15 bg-ink/8 px-2 py-0.5 font-mono text-xs font-semibold text-inkLight dark:border-white/15 dark:bg-white/10"
               >Space</kbd
             >
           </button>
         </div>
-      </template>
-    </main>
+      </div>
+    </footer>
+
+    <!-- Menu sheet. A bottom sheet keeps every entry inside the thumb zone. -->
+    <Transition name="fade">
+      <div
+        v-if="isMenuOpen"
+        data-testid="reading-menu"
+        class="fixed inset-0 z-40 flex items-end justify-center bg-black/25 backdrop-blur-sm"
+        @click.self="isMenuOpen = false"
+      >
+        <div
+          class="sheet-rise w-full max-w-md overflow-hidden rounded-t-2xl border-t border-ink/8 bg-surface shadow-lg"
+          style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+        >
+          <router-link
+            to="/settings"
+            class="flex min-h-[52px] items-center gap-3 px-6 text-[15px] text-ink transition-colors active:bg-ink/5"
+            @click="isMenuOpen = false"
+          >
+            <svg
+              class="h-5 w-5 text-inkLight"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.398.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.272-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894Z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+              />
+            </svg>
+            {{ i18nMessages.menu }}
+          </router-link>
+
+          <router-link
+            to="/stats"
+            class="flex min-h-[52px] items-center gap-3 border-t border-ink/5 px-6 text-[15px] text-ink transition-colors active:bg-ink/5"
+            @click="isMenuOpen = false"
+          >
+            <svg
+              class="h-5 w-5 text-inkLight"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"
+              />
+            </svg>
+            {{ i18nMessages.stats }}
+          </router-link>
+
+          <button
+            type="button"
+            class="flex min-h-[52px] w-full items-center gap-3 border-t border-ink/5 px-6 text-left text-[15px] text-ink transition-colors active:bg-ink/5"
+            @click="
+              isMenuOpen = false;
+              showAbout = true;
+            "
+          >
+            <svg
+              class="h-5 w-5 text-inkLight"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
+              />
+            </svg>
+            {{ i18nMessages.aboutOpenVoca }}
+          </button>
+
+          <a
+            href="https://github.com/Maribbit/openvoca"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex min-h-[52px] items-center gap-3 border-t border-ink/5 px-6 text-[15px] text-ink transition-colors active:bg-ink/5"
+          >
+            <svg
+              class="h-5 w-5 text-inkLight"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"
+              />
+            </svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </Transition>
 
     <DefinitionToast
       :entry="definitionEntry"
@@ -565,6 +716,7 @@
 
   const readingUiSettings = ref<ReadingUiSettings>(loadReadingUiSettings());
   const uiFontSize = ref<UiFontSizeOption>(loadUiFontSize());
+  const isMenuOpen = ref(false);
   const { messages: i18nMessages } = useI18n();
 
   const dictionaryDisplayMode = computed<DictionaryDisplayMode>(() => {
