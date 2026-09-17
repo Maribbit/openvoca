@@ -113,14 +113,17 @@
                     ?
                   </button>
                 </label>
+                <!-- Five fixed-width options slightly exceeded the column on a
+                     phone. They share the available width until there is room to
+                     size to their labels again. -->
                 <div
-                  class="inline-flex rounded-xl border border-black/8 bg-paper p-1"
+                  class="flex w-full rounded-xl border border-black/8 bg-paper p-1 sm:inline-flex sm:w-auto"
                 >
                   <button
                     v-for="opt in uiFontSizeOptions"
                     :key="opt.value"
                     type="button"
-                    class="flex h-8 items-center justify-center rounded-lg px-2.5 transition-all"
+                    class="flex h-8 min-w-0 flex-1 items-center justify-center rounded-lg px-2 transition-all sm:flex-none sm:px-2.5"
                     :class="toggleClass(uiFontSize === opt.value)"
                     @click="setUiFontSize(opt.value)"
                   >
@@ -197,13 +200,16 @@
               <label class="text-sm font-medium text-ink">
                 {{ i18nMessages.apiKey }}
               </label>
-              <div class="flex gap-2">
+              <!-- The field and the actions share a row only when it fits. Three
+                   fixed-width controls in a row overflowed the card on a phone,
+                   and the masked hint was squeezed onto two lines. -->
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <!-- Stored: read-only. The hint is text, never an input value,
                      so it can never be written back as if it were the key. -->
                 <div
                   v-if="apiKeySet"
                   data-testid="provider-key-status"
-                  class="flex flex-1 items-center gap-2 rounded-xl border border-black/8 bg-black/3 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5"
+                  class="flex items-center gap-2 rounded-xl border border-black/8 bg-black/3 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5 sm:min-w-0 sm:flex-1"
                 >
                   <span class="text-inkLight">
                     {{ i18nMessages.apiKeyConfigured }}
@@ -216,39 +222,41 @@
                   data-testid="provider-key-input"
                   type="password"
                   :placeholder="i18nMessages.apiKeyPlaceholder"
-                  class="flex-1 rounded-xl border border-black/8 bg-paper px-4 py-2.5 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
+                  class="min-w-0 rounded-xl border border-black/8 bg-paper px-4 py-2.5 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight sm:flex-1"
                 />
-                <button
-                  v-if="apiKeySet"
-                  type="button"
-                  data-testid="provider-key-clear"
-                  class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
-                  @click="confirmClearProviderKey"
-                >
-                  {{ i18nMessages.apiKeyClear }}
-                </button>
-                <button
-                  v-else
-                  type="button"
-                  data-testid="provider-key-save"
-                  class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
-                  :disabled="!providerKeyDraft || savingKey"
-                  @click="submitProviderKey"
-                >
-                  {{ i18nMessages.apiKeySave }}
-                </button>
-                <button
-                  type="button"
-                  class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
-                  :disabled="connectionStatus === 'testing'"
-                  @click="handleTestConnection"
-                >
-                  {{
-                    connectionStatus === "testing"
-                      ? i18nMessages.testingConnection
-                      : i18nMessages.testConnection
-                  }}
-                </button>
+                <div class="flex gap-2 sm:shrink-0">
+                  <button
+                    v-if="apiKeySet"
+                    type="button"
+                    data-testid="provider-key-clear"
+                    class="flex-1 whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 active:bg-black/8 dark:border-white/15 dark:hover:bg-white/8 sm:flex-none"
+                    @click="confirmClearProviderKey"
+                  >
+                    {{ i18nMessages.apiKeyClear }}
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    data-testid="provider-key-save"
+                    class="flex-1 whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 active:bg-black/8 dark:border-white/15 dark:hover:bg-white/8 sm:flex-none"
+                    :disabled="!providerKeyDraft || savingKey"
+                    @click="submitProviderKey"
+                  >
+                    {{ i18nMessages.apiKeySave }}
+                  </button>
+                  <button
+                    type="button"
+                    class="flex-1 whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 active:bg-black/8 dark:border-white/15 dark:hover:bg-white/8 sm:flex-none"
+                    :disabled="connectionStatus === 'testing'"
+                    @click="handleTestConnection"
+                  >
+                    {{
+                      connectionStatus === "testing"
+                        ? i18nMessages.testingConnection
+                        : i18nMessages.testConnection
+                    }}
+                  </button>
+                </div>
               </div>
               <div class="flex items-center justify-between">
                 <p class="text-xs text-inkLight">
@@ -293,32 +301,55 @@
             <p class="text-xs text-inkLight">
               {{ i18nMessages.advancedHeadersHint }}
             </p>
+            <!-- Two inputs and a button in one row could not fit a phone: a flex
+                 item will not shrink below its intrinsic width unless told to,
+                 so the value field ran off the card. minmax(0,1fr) allows the
+                 shrink, and the value drops to its own row while narrow. -->
             <div
               v-for="(header, index) in headerDrafts"
               :key="index"
-              class="flex gap-2"
+              class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
             >
               <input
                 v-model="header.name"
                 data-testid="provider-header-name"
                 type="text"
                 :placeholder="i18nMessages.headerName"
-                class="flex-1 rounded-xl border border-black/8 bg-paper px-4 py-2.5 font-mono text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
+                class="col-start-1 row-start-1 min-w-0 rounded-xl border border-black/8 bg-paper px-4 py-2.5 font-mono text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
               />
               <input
                 v-model="header.value"
                 data-testid="provider-header-value"
                 type="text"
                 :placeholder="i18nMessages.headerValue"
-                class="flex-1 rounded-xl border border-black/8 bg-paper px-4 py-2.5 font-mono text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
+                class="col-span-2 row-start-2 min-w-0 rounded-xl border border-black/8 bg-paper px-4 py-2.5 font-mono text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight sm:col-span-1 sm:col-start-2 sm:row-start-1"
               />
               <button
                 type="button"
                 data-testid="provider-header-remove"
-                class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-inkLight transition-colors hover:bg-black/4 hover:text-ink dark:border-white/15 dark:hover:bg-white/8"
+                class="col-start-2 row-start-1 whitespace-nowrap rounded-xl border border-black/15 px-3.5 py-2.5 text-sm font-medium text-inkLight transition-colors hover:bg-black/4 hover:text-ink active:bg-black/8 dark:border-white/15 dark:hover:bg-white/8 sm:col-start-3 sm:px-4"
+                :title="i18nMessages.removeHeader"
+                :aria-label="i18nMessages.removeHeader"
                 @click="removeHeader(index)"
               >
-                {{ i18nMessages.removeHeader }}
+                <!-- Icon only while narrow, so the name field keeps enough width
+                     to show a header name undivided. -->
+                <svg
+                  class="h-4 w-4 sm:hidden"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                  />
+                </svg>
+                <span class="hidden sm:inline">{{
+                  i18nMessages.removeHeader
+                }}</span>
               </button>
             </div>
             <button
