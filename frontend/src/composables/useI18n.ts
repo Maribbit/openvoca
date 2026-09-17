@@ -135,7 +135,6 @@ export interface LocaleMessages {
   revealAnswer: string;
   riddleClue: string;
   riddleAnswer: string;
-  statsLemma: string;
   statsInterval: string;
   statsIntervalTip: string;
   statsCooldown: string;
@@ -344,7 +343,6 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     revealAnswer: "Reveal Answer",
     riddleClue: "Clue",
     riddleAnswer: "Answer",
-    statsLemma: "Lemma",
     statsInterval: "Familiarity",
     statsIntervalTip: "Each level doubles the cooldown: 2, 4, 8, 16, 32, 64",
     statsCooldown: "Cooldown",
@@ -548,7 +546,6 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     revealAnswer: "揭晓答案",
     riddleClue: "提示",
     riddleAnswer: "答案",
-    statsLemma: "词元",
     statsInterval: "熟悉度",
     statsIntervalTip: "每升一级，冷却翻倍：2, 4, 8, 16, 32, 64",
     statsCooldown: "冷却剩余",

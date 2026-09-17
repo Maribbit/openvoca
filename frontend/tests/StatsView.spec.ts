@@ -58,38 +58,11 @@ describe("StatsView.vue", () => {
       false,
     );
 
-    await wrapper.find("tbody tr").trigger("click");
+    await wrapper.find('[data-testid="stats-row"]').trigger("click");
     await flushPromises();
 
     const deleteButton = wrapper.find('[data-testid="stats-detail-delete"]');
     expect(deleteButton.exists()).toBe(true);
     expect(deleteButton.text()).toContain("Delete word");
-  });
-
-  // delete-candidate: 只检查输入框排版 class，缺少独立产品概念；编辑能力由后端 patch 与统计行交互测试间接覆盖。
-  it.skip("uses centered text inputs for numeric editing", async () => {
-    const wrapper = mountStatsView();
-    await flushPromises();
-
-    expect(
-      wrapper.find('[data-testid="stats-level-header"]').classes(),
-    ).toContain("text-center");
-    expect(
-      wrapper.find('[data-testid="stats-cooldown-header"]').classes(),
-    ).toContain("text-center");
-
-    await wrapper
-      .find('[data-testid="stats-row-action"] button')
-      .trigger("click");
-    await flushPromises();
-
-    const inputs = wrapper.findAll("input[inputmode='numeric']");
-    expect(inputs).toHaveLength(2);
-    for (const input of inputs) {
-      expect(input.attributes("type")).toBe("text");
-      expect(input.classes()).toEqual(
-        expect.arrayContaining(["mx-auto", "w-20", "text-center"]),
-      );
-    }
   });
 });
