@@ -596,11 +596,28 @@
     opacity: 0;
   }
 
+  /* Definition lines stack one per row. This has to hold at every width: as
+     inline spans they ran together into a single unbroken line, so "光辉, 壮丽,
+     显赫" was immediately followed by the English sense with no separation. */
+  .def-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* On touch the panel is capped and scrolls, because a word with several
+     senses would otherwise cover the sentence being read. */
+  @media (hover: none) {
+    .def-lines {
+      max-height: 132px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+  }
+
   /* This panel is transient and its controls were sized for a cursor. On touch
      every control gets a finger-sized box: the knowledge choice is the primary
-     action and the rest are references, but all are tapped without aiming.
-     The definition text is capped and scrolls, because a word with several
-     senses would otherwise push the panel over most of the sentence. */
+     action and the rest are references, but all are tapped without aiming. */
   @media (hover: none) {
     .def-toast button,
     .def-toast a {
@@ -615,14 +632,6 @@
     .def-toast .def-choice {
       min-height: 44px;
       padding-inline: 1.25rem;
-    }
-    .def-lines {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      max-height: 132px;
-      overflow-y: auto;
-      overscroll-behavior: contain;
     }
   }
 </style>
