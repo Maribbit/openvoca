@@ -12,45 +12,27 @@
 #
 # One ID per line. Lines starting with # are ignored.
 
-# Deployment work is deferred by decision; see docs/specs/deployment.md.
-# The file is shelved in favour of private-deployment.md, which is the live
-# deployment spec. These criteria stay listed because they are still defined
-# and still unimplemented, not because they are planned work.
-AC-DEPLOY-001-01
-AC-DEPLOY-001-02
-AC-DEPLOY-002-01
-AC-DEPLOY-002-02
-AC-DEPLOY-003-01
-AC-DEPLOY-003-02
-AC-DEPLOY-003-03
-AC-DEPLOY-003-04
-AC-DEPLOY-003-05
-AC-DEPLOY-003-06
-AC-DEPLOY-003-07
-AC-DEPLOY-003-08
-AC-DEPLOY-003-09
-AC-DEPLOY-003-10
-
-# AC-DEPLOY-005-01 and AC-DEPLOY-005-02 are listed here for a different reason
-# than the entries above. Reading OPENVOCA_VERSION and returning it from
-# /api/update-check already exists in backend/src/main.py, so these are built
-# but untested rather than planned. They stay in the list because the gate
-# treats an unlisted, unreferenced criterion as missing coverage; the real
-# remaining work is test coverage, not implementation.
-AC-DEPLOY-005-01
-AC-DEPLOY-005-02
-
-# Private-network deployment is the live deployment plan; see
-# docs/specs/private-deployment.md. Nothing below is implemented yet.
+# Private-network deployment is the deployment plan; see
+# docs/specs/private-deployment.md. Unless noted below, nothing here is built.
 AC-PRIV-001-01
 AC-PRIV-001-02
 AC-PRIV-001-03
 AC-PRIV-001-04
+
+# Listed for a different reason: these are already implemented in the code but
+# have no test coverage, so the gate does not count them as covered yet.
+# Resolving the static directory from __file__, reading OPENVOCA_VERSION, and
+# skipping the update check when it is unset all live in backend/src/main.py.
+AC-PRIV-001-05
+AC-PRIV-001-06
+AC-PRIV-001-07
+
 AC-PRIV-002-01
 AC-PRIV-002-02
 AC-PRIV-002-03
 AC-PRIV-002-04
 AC-PRIV-002-05
+AC-PRIV-002-06
 AC-PRIV-003-01
 AC-PRIV-003-02
 AC-PRIV-003-03
@@ -62,6 +44,10 @@ AC-PRIV-004-02
 AC-PRIV-004-03
 AC-PRIV-004-04
 AC-PRIV-004-05
+
+# Deferred by design rather than by ordering: the update request path must not
+# be built before process supervision exists, because its failure mode is the
+# situation it is meant to remove. See the bootstrap paradox section.
 AC-PRIV-005-01
 AC-PRIV-005-02
 AC-PRIV-005-03
