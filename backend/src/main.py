@@ -6,6 +6,7 @@ import csv
 import io
 import os
 import re
+import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,13 +23,16 @@ from src.integrations.provider import LLMProvider
 from src.services.prompt_builder import (
     build_sentence_generation_prompt,
 )
+from src.services.schema_guard import describe_gaps, find_schema_gaps
 from src.services.tokenizer import tokenize_sentence
 from src.services.word_store import (
     apply_feedback,
     draft_feedback,
     LevelDelta,
     clear_all_words,
+    database_path,
     delete_word_record,
+    get_engine,
     import_vocabulary,
     list_all_words,
     pick_target_words,
@@ -46,6 +50,16 @@ from src.services.settings_store import (
     upsert_setting,
 )
 from src.services.dictionary import lookup as dict_lookup
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+
+# Resolved from this file, never from the working directory. The working
+# directory is chosen by whatever starts the process, and under a symlink-based
+# deployment the path a symlink points at changes between revisions; neither may
+# decide whether the interface can be found.
+_frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
 # ---------------------------------------------------------------------------
 # Update check
@@ -94,9 +108,40 @@ async def _check_for_updates() -> None:
         pass  # network failure is expected in offline / air-gapped environments
 
 
+def report_startup_paths() -> None:
+    """Print the paths this process resolved, before it begins serving.
+
+    A wrong path is the hardest deployment failure to diagnose: the API answers
+    normally, every probe passes, and only the interface is blank.
+    """
+    db_path = database_path()
+    print(f"Data directory : {db_path.parent}", flush=True)
+    print(f"Database       : {db_path}", flush=True)
+    if _frontend_dist.exists():
+        print(f"Frontend       : {_frontend_dist}", flush=True)
+    else:
+        print(
+            f"WARNING: no frontend build at {_frontend_dist}. "
+            "The API will answer but the interface will not load.",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):  # noqa: ARG001
-    """Close the persistent LLM HTTP client on shutdown."""
+    """Verify the environment before serving; release the LLM client after."""
+    report_startup_paths()
+
+    gaps = find_schema_gaps(get_engine())
+    if gaps:
+        print(describe_gaps(gaps), file=sys.stderr, flush=True)
+        # Raising aborts startup. The process exits without ever accepting a
+        # request against a schema it cannot query.
+        raise RuntimeError(
+            f"refusing to start: {len(gaps)} table(s) do not match the models"
+        )
+
     asyncio.create_task(_check_for_updates())
     yield
     if isinstance(llm, OpenAICompatibleClient):
@@ -880,8 +925,6 @@ def delete_all_settings() -> dict[str, int]:
 
 
 # --- Frontend SPA (must be last) ---
-
-_frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
 if _frontend_dist.exists():
     app.mount(

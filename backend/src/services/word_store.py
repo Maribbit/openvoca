@@ -71,6 +71,16 @@ def get_engine():
     return _engine
 
 
+def database_path() -> Path:
+    """Path of the database file in use, as resolved by the live engine.
+
+    Derived from the engine rather than recomputed from the environment, so the
+    path reported at startup cannot drift from the one actually serving requests.
+    """
+    database = get_engine().url.database
+    return Path(database) if database else Path(":memory:")
+
+
 def init_db(engine=None) -> None:
     """Create tables if they don't exist."""
     target = engine or _engine
