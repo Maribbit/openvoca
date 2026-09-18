@@ -14,18 +14,9 @@
 
 # Private-network deployment is the deployment plan; see
 # docs/specs/private-deployment.md. Unless noted below, nothing here is built.
-AC-PRIV-001-01
-AC-PRIV-001-02
-AC-PRIV-001-03
-AC-PRIV-001-04
-
-# Listed for a different reason: these are already implemented in the code but
-# have no test coverage, so the gate does not count them as covered yet.
-# Resolving the static directory from __file__, reading OPENVOCA_VERSION, and
-# skipping the update check when it is unset all live in backend/src/main.py.
-AC-PRIV-001-05
-AC-PRIV-001-06
-AC-PRIV-001-07
+#
+# AC-PRIV-001-01..06 (the distribution contract) are implemented and covered by
+# backend/tests/test_private_deployment.py, so they are no longer listed.
 
 AC-PRIV-002-01
 AC-PRIV-002-02

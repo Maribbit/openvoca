@@ -217,6 +217,22 @@ def _read_config() -> dict:
         return json.load(f)
 
 
+def _build_env(cfg: dict) -> dict:
+    """Build the environment for the uvicorn child process.
+
+    The data directory is a default, not an assignment: a deployment may point
+    OPENVOCA_DATA_DIR outside the bundle so that replacing the bundle directory
+    does not delete the database. PYTHONPATH and the version are forced,
+    because the bundle cannot start without the first and would misreport
+    updates without the second.
+    """
+    env = dict(os.environ)
+    env.setdefault("OPENVOCA_DATA_DIR", str(DATA_DIR))
+    env["OPENVOCA_VERSION"] = cfg.get("version", "")
+    env["PYTHONPATH"] = str(SITE_PACKAGES)
+    return env
+
+
 def main() -> None:
     cfg = _read_config()
     host: str = cfg.get("host", "127.0.0.1")
@@ -225,13 +241,9 @@ def main() -> None:
     open_browser: bool = cfg.get("open_browser", True)
     health_url = f"http://{host}:{port}/api/health"
 
-    DATA_DIR.mkdir(exist_ok=True)
-    env = {
-        **os.environ,
-        "OPENVOCA_DATA_DIR": str(DATA_DIR),
-        "OPENVOCA_VERSION": cfg.get("version", ""),
-        "PYTHONPATH": str(SITE_PACKAGES),
-    }
+    env = _build_env(cfg)
+    # Create whichever directory will actually be used, not just the bundled one.
+    Path(env["OPENVOCA_DATA_DIR"]).mkdir(parents=True, exist_ok=True)
 
     print(f"Starting OpenVoca {cfg.get('version', '')} on http://{host}:{port} ...")
     proc = subprocess.Popen(
