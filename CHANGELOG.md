@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.10.3
+
+Date: 2026-09-19
+
+### Added
+- **Self-hosting on a machine you own** -- `scripts/deploy.py` moves a deployment to a different revision of the repository in one command: it exports the revision, installs its dependencies, builds its interface, snapshots the database, checks the new revision against that snapshot, repoints a `current` symlink and restarts the service. Deployment was the step that made every other improvement hard to use, because the cost of redeploying accumulates until you stop bothering to update.
+- **`/api/health` reports the running revision** -- The response gained a `revision` field, supplied through `OPENVOCA_REVISION` by whatever started the process. After a deployment, "is it up?" and "is the new code live?" are the same question, and answering them with two calls invites checking only the first.
+- **`deploy/openvoca.service`** -- A systemd unit that runs the service from a symlink, so switching revisions never touches it. Restarts are bounded: a revision that refuses to start enters the `failed` state after a few attempts rather than looping and burying the reason. `ProtectSystem=strict` makes the code tree read-only for the service, so an accidental write fails immediately instead of surviving until the next deployment replaces it.
+- **`backend/src/preflight.py`** -- Runs a revision's own startup checks without starting it, so a revision that would refuse to serve is never switched to.
+- **`docs/DEPLOY.md`** -- The full procedure, written for whoever is on the deployment machine. Includes why the commands pass `PATH` through `sudo` explicitly.
+- **`docs/specs/private-deployment.md`** -- 27 acceptance criteria covering the distribution contract, startup checks, deployment atomicity, process supervision, and the boundary between requesting and executing an update.
+
+### Fixed
+- **The portable bundle overrode the caller's data directory** -- The launcher built its child environment with the bundle's own `data/` last, so `OPENVOCA_DATA_DIR` set from outside was silently discarded. Because an update replaces the bundle directory, this made every update destructive: it would take the database with it. The data directory is now a default rather than an assignment, and the directory that actually gets used is the one created. This was the single obstacle that made any update path unsafe.
+- **A database older than the models silently served broken queries** -- `create_all()` creates missing tables but never alters existing ones, so a model that gained a column kept running against a table that never received it. The application started, the health check answered `200`, static pages loaded, and the first query touching that column raised `no such column`. Every automated probe reported the service as healthy. Startup now compares the model's declared columns against the database and refuses to start, naming the table and the missing columns. The check is deliberately one-directional: a surplus column is what a rollback looks like, and refusing to start then would block the recovery path an operator reaches for precisely when a deployment has gone wrong.
+- **The interface path was only reported when it existed** -- Startup printed the frontend directory only when a build was present, and otherwise mentioned it inside a warning on stderr. The output therefore differed by environment and omitted the one line an operator reads when the interface is blank. All three paths are now always printed.
+- **`deploy.py` failed with a traceback when a tool was unreachable** -- A missing executable surfaces from `subprocess` as `FileNotFoundError`, which escaped the deployment's error handler. The operator got a stack trace instead of being told which revision was still serving and how to return to it — the one thing a failed deployment must say. The toolchain is now checked before any work begins, and the message names the `PATH` that was searched, because the usual cause is not an absent tool: `sudo` replaces `PATH` with its own `secure_path`, which contains `/usr/bin` but not where user-installed tools live. `git` is found and `uv` is not, which is why a deployment gets past the export and fails at the dependency install.
+- **The SPA fallback test asserted nothing in CI** -- The static routes were defined inside a module-level `if dist exists` block, so in an environment without a frontend build they did not exist as attributes, and the test's `hasattr` guard meant it reported success without executing an assertion. `AC-SHELL-001-02` was green and untested. Registration moved into `register_spa(app, dist)`, and the test now drives real requests through a `TestClient`.
+
+### Changed
+- **Startup now refuses to serve a database it cannot query** -- See Fixed above. This is a behaviour change rather than a cosmetic one: a revision will decline to start where it previously started and failed later. A revision that is deployed and refuses to start leaves the previous one serving.
+- **The VPS deployment specification was removed** -- `docs/specs/deployment.md` described a public deployment with a reverse proxy, TLS termination, an image registry and session-cookie authentication. It assumed a target that may never exist. Specifications should describe the path actually being taken, so it is gone rather than shelved, and three criteria from it that were environment-independent (static resources resolved from the application file, version injection, and skipping the update check when the version is unset) were carried into the private deployment specification.
+
+### Changed Files
+- `scripts/deploy.py` -- New; one-command deployment with an atomic symlink switch.
+- `scripts/bundle.py` -- `OPENVOCA_DATA_DIR` is a default; the directory used is the one created.
+- `deploy/openvoca.service`, `deploy/openvoca.conf.example` -- New; systemd unit and optional overrides.
+- `docs/DEPLOY.md` -- New; the deployment procedure.
+- `docs/specs/private-deployment.md` -- New; 27 criteria. `docs/specs/deployment.md` removed.
+- `backend/src/preflight.py`, `backend/src/services/schema_guard.py` -- New; startup checks.
+- `backend/src/main.py` -- Startup path reporting, schema check, `register_spa()`, revision in health.
+- `backend/src/services/word_store.py` -- `database_path()`.
+- `backend/tests/` -- `test_private_deployment.py`, `test_deployment_atomicity.py`, `test_process_supervision.py` added; `test_static.py` rewritten to exercise the routes; `test_main.py` updated for the health response.
+- `README.md` -- Self-hosting section.
+- `VERSION`, `frontend/package.json`, `backend/pyproject.toml` -- Version bumped.
+
 ## v0.10.2
 
 Date: 2026-09-17
