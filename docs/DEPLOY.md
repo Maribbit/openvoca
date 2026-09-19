@@ -121,6 +121,11 @@ sudo systemctl enable openvoca
 `enable` without `--now`, because nothing has been deployed yet. The first
 deployment starts it.
 
+This step is what makes the service start at boot, and it is easy to skip
+because nothing complains until the machine restarts. Section
+[Will it come back after a reboot?](#will-it-come-back-after-a-reboot) covers how
+to confirm it.
+
 Optionally copy `deploy/openvoca.conf.example` to `/etc/openvoca/openvoca.conf`
 to change the port. The service starts without that file.
 
@@ -185,6 +190,82 @@ sudo env "PATH=$PATH" python3 scripts/deploy.py <previous-revision>
 - **A revision that cannot run will not be switched to.** The new revision's
   own startup check runs first, against a *copy* of the snapshot, so a revision
   that is about to be rejected has not written anything.
+
+It does **not** guarantee that the service comes back after a reboot. Starting
+at boot is decided by `systemctl enable`, which is a one-time step during
+installation; a deployment restarts the service and says nothing about it. The
+next section covers this, because it is the one thing that can be wrong while
+everything looks fine.
+
+## Will it come back after a reboot?
+
+Starting at boot comes from two places: `WantedBy=multi-user.target` in the
+unit, and `systemctl enable`, which creates the symlink that lets systemd act on
+it. The unit ships with the first; the second is step 3 of the installation.
+
+Check it without rebooting:
+
+```bash
+systemctl is-enabled openvoca
+```
+
+That must print exactly `enabled`. Two other answers look close enough and are
+not:
+
+| Answer | What it means |
+|---|---|
+| `enabled-runtime` | The symlink lives in `/run`, which a reboot clears |
+| `static` | The unit has no `[Install]` section, so it cannot be enabled |
+
+Anything other than `enabled`:
+
+```bash
+sudo systemctl enable openvoca
+```
+
+Every deployment checks this and prints a warning when it is not `enabled`, so a
+missed installation step does not stay hidden until the machine happens to
+restart — possibly weeks later, with no recent change to suspect.
+
+To verify the whole thing for real, reboot and look at **this boot only**:
+
+```bash
+sudo systemctl reboot
+# once it is back:
+systemctl status openvoca
+journalctl -u openvoca -b --no-pager | head -20
+```
+
+`-b` restricts the journal to the current boot, so if the service is absent from
+it, it did not start. `journalctl -u openvoca` without `-b` would show the
+previous boot's entries and look like success.
+
+The startup output belongs in whatever you check first:
+
+```
+Data directory : /var/lib/openvoca
+Database       : /var/lib/openvoca/openvoca.db
+Frontend       : /opt/openvoca/current/frontend/dist
+```
+
+`/api/health` reports the revision that is answering, which distinguishes a
+service that came back from one that came back on the wrong revision:
+
+```bash
+curl -s http://localhost:8000/api/health
+```
+
+### A deployment is not a reboot
+
+`systemctl restart` and a reboot differ in more than scope. A restart inherits
+the environment of the running service; a boot builds it from the unit, the
+`EnvironmentFile` entries and systemd's own defaults. So a service can survive
+restarts for months and fail on the first boot — for example if something that
+worked only because of a leftover environment variable was never in the unit.
+
+If the service comes up after a deployment but not after a reboot, compare
+`systemctl show openvoca -p Environment` against the values in the unit, and
+check that `revision.env` exists and is readable.
 
 ## When something goes wrong
 

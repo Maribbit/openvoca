@@ -345,6 +345,59 @@ def restart() -> None:
         raise DeployError(f"restart failed: {command} exited with {result.returncode}")
 
 
+# The only state in which systemd starts the unit at boot. ``enabled-runtime``
+# looks like it but writes the symlink into /run, which a reboot clears, and
+# ``static`` means the unit has no [Install] section and cannot be enabled at all.
+_BOOT_ENABLED_STATE = "enabled"
+
+
+def boot_start_state() -> str | None:
+    """Whether the service will start at boot, or None when unknowable.
+
+    Returns None for a service manager that is not systemd, because the question
+    only has an answer in terms of systemd's enablement. A deployment driven by
+    something else is not thereby broken.
+    """
+    argv = restart_command().split()
+    if not argv or Path(argv[0]).name != "systemctl":
+        return None
+
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-enabled", SERVICE_NAME],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return "not determinable (systemctl is not on PATH)"
+
+    lines = result.stdout.strip().splitlines()
+    return lines[0].strip() if lines else "not determinable (no answer)"
+
+
+def report_boot_start(state: str | None) -> None:
+    """Warn when the service will not come back after a reboot.
+
+    Nothing else in a deployment reveals this. Enabling is a one-time step when
+    the unit is installed, so a missing ``systemctl enable`` leaves a service
+    that runs perfectly until the machine next restarts -- possibly weeks later,
+    with no recent change to suspect. Reporting it here is the only point at
+    which the deployment knows the service is running and can ask whether it
+    will still be there tomorrow.
+    """
+    if state is None or state == _BOOT_ENABLED_STATE:
+        return
+
+    print(
+        f"WARNING: {SERVICE_NAME} is not set to start at boot "
+        f"(systemctl reports '{state}').\n"
+        "         It is running now, but it will not come back after a reboot.\n"
+        f"         Fix it with: systemctl enable {SERVICE_NAME}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def run_deploy(revision: str, layout: Layout, repository: Path) -> None:
     """Perform the deployment, in order, stopping at the first failure."""
     release = layout.release(revision)
@@ -393,6 +446,7 @@ def run_deploy(revision: str, layout: Layout, repository: Path) -> None:
 
     print(f"\nOpenVoca now runs {revision}.")
     print(f"Snapshot: {snapshot}" if snapshot else "No snapshot was needed.")
+    report_boot_start(boot_start_state())
 
 
 def _serving_revision(layout: Layout) -> str:

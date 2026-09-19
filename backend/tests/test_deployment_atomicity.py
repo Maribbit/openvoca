@@ -116,6 +116,35 @@ sys.exit({exit_code})
 """
 
 
+def _fake_systemctl(enabled_state: str) -> str:
+    """A ``systemctl`` that records calls and answers ``is-enabled``.
+
+    Exit codes follow the real tool: a unit that is enabled exits 0 and a
+    disabled one exits 1, so a check that trusted the exit code alone would be
+    caught here.
+    """
+    exits_zero = enabled_state in ("enabled", "enabled-runtime", "static")
+    return f"""#!/usr/bin/env python3
+import json, os, sys
+
+args = sys.argv[1:]
+entry = {{
+    "tool": "systemctl",
+    "argv": args,
+    "cwd": os.getcwd(),
+    "data_dir": os.environ.get("OPENVOCA_DATA_DIR", ""),
+    "uv_python_dir": os.environ.get("UV_PYTHON_INSTALL_DIR", ""),
+}}
+with open(os.environ["FAKE_LOG"], "a", encoding="utf-8") as handle:
+    handle.write(json.dumps(entry) + "\\n")
+
+if args and args[0] == "is-enabled":
+    print({enabled_state!r})
+    sys.exit(0 if {exits_zero!r} else 1)
+sys.exit(0)
+"""
+
+
 @pytest.fixture
 def tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
     """Put stand-ins for every external command on PATH and return (log, path).
@@ -123,12 +152,17 @@ def tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
     The deployment script invokes real executables, so intercepting them at the
     PATH boundary exercises the same code that runs on the deployment machine
     instead of a mocked-out approximation of it.
+
+    The service manager reports ``enabled`` by default, which is what a correctly
+    installed deployment looks like, so tests that are not about boot persistence
+    are not also exercising its warning path.
     """
     binary_dir = tmp_path / "bin"
     binary_dir.mkdir()
     _write_executable(binary_dir / "git", _fake_git())
-    for tool in ("uv", "pnpm", "systemctl"):
+    for tool in ("uv", "pnpm"):
         _write_executable(binary_dir / tool, _fake_recorder(tool))
+    _write_executable(binary_dir / "systemctl", _fake_systemctl("enabled"))
 
     log = tmp_path / "calls.log"
     log.write_text("", encoding="utf-8")
@@ -627,6 +661,99 @@ def test_the_deployment_reports_where_interpreters_live(
     assert str(layout.python_dir) in capsys.readouterr().out
 
 
+# Covers: AC-PRIV-004-02
+@pytest.mark.parametrize(
+    "state", ["disabled", "enabled-runtime", "static", "masked", "not-found"]
+)
+def test_a_service_that_will_not_survive_a_reboot_is_reported(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tools,
+    capsys: pytest.CaptureFixture,
+    state: str,
+) -> None:
+    """Enablement is checked once at install time and is invisible afterwards.
+
+    ``enabled-runtime`` is included deliberately: it reads like enablement but
+    writes its symlink into /run, which a reboot clears. ``static`` means the
+    unit has no [Install] section and cannot be enabled at all. Neither would be
+    caught by trusting systemctl's exit code, since both exit zero.
+    """
+    _log, binary_dir = tools
+    layout = _layout(tmp_path, monkeypatch)
+    _seed_database(layout)
+    _serve(layout, "previous")
+    _write_executable(binary_dir / "systemctl", _fake_systemctl(state))
+
+    assert deploy.main(["abc123"]) == 0
+    err = capsys.readouterr().err
+
+    assert "not set to start at boot" in err
+    assert state in err
+    assert "systemctl enable openvoca" in err
+
+
+# Covers: AC-PRIV-004-02
+def test_an_enabled_service_is_not_reported(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tools,
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """No warning when the deployment is correctly installed, or it becomes noise."""
+    _log, binary_dir = tools
+    layout = _layout(tmp_path, monkeypatch)
+    _seed_database(layout)
+    _serve(layout, "previous")
+    _write_executable(binary_dir / "systemctl", _fake_systemctl("enabled"))
+
+    assert deploy.main(["abc123"]) == 0
+
+    assert "boot" not in capsys.readouterr().err
+
+
+# Covers: AC-PRIV-004-02
+def test_boot_state_is_asked_of_the_service_manager(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tools
+) -> None:
+    """The question must reach systemd, and a definite answer must win over silence."""
+    log, _binary_dir = tools
+    layout = _layout(tmp_path, monkeypatch)
+    _seed_database(layout)
+    _serve(layout, "previous")
+
+    assert deploy.main(["abc123"]) == 0
+
+    asked = [call["argv"] for call in _calls(log) if call["argv"][:1] == ["is-enabled"]]
+
+    assert asked == [["is-enabled", "openvoca"]]
+
+
+# Covers: AC-PRIV-004-02
+def test_boot_state_is_not_guessed_for_another_service_manager(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tools,
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """A non-systemd deployment is not thereby broken.
+
+    Enablement is a systemd concept. Reporting it as a problem for a deployment
+    driven by something else would be a false alarm about a configuration the
+    script cannot see.
+    """
+    log, _binary_dir = tools
+    layout = _layout(tmp_path, monkeypatch)
+    _seed_database(layout)
+    _serve(layout, "previous")
+    monkeypatch.setenv("OPENVOCA_RESTART_CMD", "true")
+
+    assert deploy.main(["abc123"]) == 0
+
+    assert "boot" not in capsys.readouterr().err
+    assert [call for call in _calls(log) if call["argv"][:1] == ["is-enabled"]] == []
+
+
 # Covers: AC-PRIV-003-06
 def test_restart_is_what_the_service_is_told_to_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tools
@@ -639,7 +766,7 @@ def test_restart_is_what_the_service_is_told_to_run(
 
     assert deploy.main(["abc123"]) == 0
 
-    restart_call = _calls(log)[-1]
+    restart_call = next(call for call in _calls(log) if call["argv"][:1] == ["restart"])
     assert restart_call["tool"] == "systemctl"
     assert restart_call["argv"] == ["restart", "openvoca"]
 
