@@ -61,6 +61,23 @@ from src.services.dictionary import lookup as dict_lookup
 # decide whether the interface can be found.
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
+
+def frontend_dist() -> Path:
+    """Directory the interface is served from."""
+    return _frontend_dist
+
+
+def running_revision() -> str:
+    """The revision this process was started from.
+
+    Supplied by the assembly layer rather than derived from the file layout. A
+    symlink switch changes the path a file resolves through, so the application
+    cannot infer its own revision without also knowing how it was deployed --
+    and knowing that is exactly what the distribution contract forbids.
+    """
+    return os.environ.get("OPENVOCA_REVISION", "").strip()
+
+
 # ---------------------------------------------------------------------------
 # Update check
 # ---------------------------------------------------------------------------
@@ -401,7 +418,17 @@ def _build_reading_response(
 
 @app.get("/api/health")
 def read_root() -> dict[str, str]:
-    return {"status": "ok", "message": "OpenVoca backend is running!"}
+    """Report availability and which revision is answering.
+
+    The revision belongs here because "is it up?" and "is the new code live?"
+    are the same question after a deployment, and answering them with two calls
+    invites checking only the first.
+    """
+    return {
+        "status": "ok",
+        "message": "OpenVoca backend is running!",
+        "revision": running_revision(),
+    }
 
 
 @app.get("/api/update-check")

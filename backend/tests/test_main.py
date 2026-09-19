@@ -22,13 +22,16 @@ client = TestClient(app)
 
 
 # Covers: AC-SHELL-001-01
-def test_health_endpoint():
-    """Health check endpoint returns status ok."""
+def test_health_endpoint(monkeypatch: pytest.MonkeyPatch):
+    """Health check endpoint returns status ok and the running revision."""
+    monkeypatch.delenv("OPENVOCA_REVISION", raising=False)
     response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json() == {
         "status": "ok",
         "message": "OpenVoca backend is running!",
+        # Empty when nothing said which revision this is; see AC-PRIV-003-06.
+        "revision": "",
     }
 
 

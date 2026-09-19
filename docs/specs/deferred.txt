@@ -16,15 +16,11 @@
 # docs/specs/private-deployment.md. Unless noted below, nothing here is built.
 #
 # AC-PRIV-001-01..06 (the distribution contract) are implemented and covered by
-# backend/tests/test_private_deployment.py, so they are no longer listed.
+# backend/tests/test_private_deployment.py.
 # AC-PRIV-002-01..07 (the startup checks) are covered by the same file.
+# AC-PRIV-003-01..08 (deployment atomicity) are covered by
+# backend/tests/test_deployment_atomicity.py.
 
-AC-PRIV-003-01
-AC-PRIV-003-02
-AC-PRIV-003-03
-AC-PRIV-003-04
-AC-PRIV-003-05
-AC-PRIV-003-06
 AC-PRIV-004-01
 AC-PRIV-004-02
 AC-PRIV-004-03
