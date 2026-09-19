@@ -164,7 +164,16 @@ def materialize(repository: Path, revision: str, release: Path) -> None:
         shutil.rmtree(release)
     release.mkdir()
 
-    archive = release.with_suffix(".tar")
+    # A unique name rather than one derived from the revision. Deriving it is
+    # tempting and wrong: Path("v0.10.3").with_suffix(".tar") is "v0.10.tar",
+    # because the last dot-component counts as a suffix, so two revisions
+    # differing only in their last part would share one archive path and could
+    # clobber each other's export.
+    handle, archive_name = tempfile.mkstemp(
+        dir=release.parent, prefix=f".{release.name}.", suffix=".tar"
+    )
+    os.close(handle)
+    archive = Path(archive_name)
     try:
         _run(
             ["git", "-C", str(repository), "archive", f"--output={archive}", revision],

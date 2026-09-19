@@ -13,6 +13,7 @@ import json
 import os
 import sqlite3
 import stat
+import tarfile
 from pathlib import Path
 
 import httpx
@@ -470,6 +471,58 @@ def test_a_missing_tool_still_reports_the_revision_in_service(
     assert code == 1
     assert "Still serving previous." in err
     assert "To go back: deploy.py previous" in err
+
+
+# Covers: AC-PRIV-003-02
+def test_two_revisions_do_not_share_a_temporary_archive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Deriving the archive name from the revision collides on the version dots.
+
+    Path("v0.10.3").with_suffix(".tar") is "v0.10.tar", because the last
+    dot-component counts as a suffix. Every patch release of a minor version
+    would therefore export through the same path, and two deployments running at
+    once would clobber each other's archive -- producing a corrupt extraction
+    rather than a clear failure.
+    """
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    seen: list[Path] = []
+
+    def fake_run(argv, *, cwd, env=None):
+        output = next(a.split("=", 1)[1] for a in argv if a.startswith("--output="))
+        seen.append(Path(output))
+        with tarfile.open(output, "w"):
+            pass  # a valid, empty archive
+
+    monkeypatch.setattr(deploy, "_run", fake_run)
+
+    for revision in ("v0.10.3", "v0.10.4"):
+        deploy.materialize(repository, revision, tmp_path / "releases" / revision)
+
+    assert len(seen) == 2
+    assert seen[0] != seen[1]
+
+
+# Covers: AC-PRIV-003-02
+def test_the_temporary_archive_is_removed_after_export(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A leftover archive would be picked up by nothing, but it is still litter."""
+    repository = tmp_path / "repo"
+    repository.mkdir()
+
+    def fake_run(argv, *, cwd, env=None):
+        output = next(a.split("=", 1)[1] for a in argv if a.startswith("--output="))
+        with tarfile.open(output, "w"):
+            pass
+
+    monkeypatch.setattr(deploy, "_run", fake_run)
+
+    deploy.materialize(repository, "v0.10.3", tmp_path / "releases" / "v0.10.3")
+
+    leftovers = list((tmp_path / "releases").glob("*.tar"))
+    assert leftovers == []
 
 
 # Covers: AC-PRIV-003-06
