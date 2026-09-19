@@ -22,10 +22,13 @@ Linux 注意：如需要，请先赋予执行权限：
 --------
 前往 菜单 -> 设置 -> 模型，填写 LLM 服务配置：
 
-  端点      例如  http://localhost:11434      （Ollama，本地）
-                  https://api.openai.com       （OpenAI）
-                  https://openrouter.ai/api    （OpenRouter）
-                  https://api.siliconflow.cn   （硅基流动）
+  端点      基础地址，带上你的提供商使用的版本前缀：
+              http://localhost:11434/v1      （Ollama，本地）
+              https://api.openai.com/v1      （OpenAI）
+              https://openrouter.ai/api/v1   （OpenRouter）
+              https://api.siliconflow.cn/v1  （硅基流动）
+              https://api.deepseek.com       （DeepSeek，无版本段）
+            /chat/completions 由程序自动拼接。
   API 密钥  你的 API 密钥（本地模型如 Ollama 可留空）
   模型      例如  deepseek-chat / gpt-4o-mini / llama3.2
 

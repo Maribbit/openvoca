@@ -248,7 +248,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     dangerZone: "Danger Zone",
     endpoint: "Endpoint",
     endpointHint:
-      "Enter the base URL only (e.g. http://localhost:11434). The /v1/chat/completions path is added automatically.",
+      "Base URL, including the version prefix your provider uses if it has one. /chat/completions is added automatically, so a full endpoint URL works too. Examples: https://api.openai.com/v1, https://api.deepseek.com, http://localhost:11434/v1",
     apiKey: "API Key",
     apiKeyPlaceholder: "Not required for local models",
     apiKeyHint:
@@ -457,7 +457,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     dangerZone: "危险操作",
     endpoint: "端点",
     endpointHint:
-      "只填基础地址（如 http://localhost:11434），/v1/chat/completions 路径会自动拼接。",
+      "基础地址，若你的提供商使用版本前缀则一并填入。/chat/completions 会自动拼接，因此直接填完整端点地址也可以。例如：https://api.openai.com/v1、https://api.deepseek.com、http://localhost:11434/v1",
     apiKey: "API 密钥",
     apiKeyPlaceholder: "本地模型无需填写",
     apiKeyHint: "仅存储在本地，不会传输给第三方。",

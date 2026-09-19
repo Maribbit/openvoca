@@ -14,10 +14,13 @@ FIRST-TIME SETUP
 ----------------
 Go to Menu -> Settings -> Model and enter your LLM provider:
 
-  Endpoint  e.g.  http://localhost:11434      (Ollama, local)
-                  https://api.openai.com       (OpenAI)
-                  https://openrouter.ai/api    (OpenRouter)
-                  https://api.siliconflow.cn   (SiliconFlow)
+  Endpoint  Base URL, with the version prefix your provider uses:
+              http://localhost:11434/v1      (Ollama, local)
+              https://api.openai.com/v1      (OpenAI)
+              https://openrouter.ai/api/v1   (OpenRouter)
+              https://api.siliconflow.cn/v1  (SiliconFlow)
+              https://api.deepseek.com       (DeepSeek, no version)
+            /chat/completions is appended automatically.
   API Key   Your API key (leave blank for local models such as Ollama)
   Model     e.g.  deepseek-chat / gpt-4o-mini / llama3.2
 

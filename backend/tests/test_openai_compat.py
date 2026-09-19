@@ -1,17 +1,19 @@
 import httpx
 import pytest
 
-from src.integrations.openai_compat import OpenAICompatibleClient
+from src.integrations.openai_compat import OpenAICompatibleClient, normalize_base_url
 from src.integrations.provider import LLMProvider
 
 
-@pytest.mark.anyio
 # Covers: AC-GEN-003-01
+@pytest.mark.anyio
 async def test_openai_compatible_client_returns_sentence() -> None:
     """The OpenAI-compatible client should extract text from chat completions."""
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/v1/chat/completions"
+        # The base URL carries no version prefix here, so the endpoint is reached
+        # directly under it.
+        assert request.url.path == "/chat/completions"
         import json
 
         payload = json.loads(request.read().decode("utf-8"))
@@ -33,6 +35,130 @@ async def test_openai_compatible_client_returns_sentence() -> None:
 
     sentence = await client_obj.generate_completion("Use these words: lantern.")
     assert sentence == "A lantern flickered softly."
+
+
+# Covers: AC-GEN-003-01, AC-GEN-003-08
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("configured", "expected"),
+    [
+        # The version segment comes from the configuration. Hard-coding an
+        # absolute /v1/chat/completions turned this into /v1/v1/chat/completions,
+        # so the most natural OpenAI value was the one that could not work.
+        ("https://api.openai.com/v1", "https://api.openai.com/v1/chat/completions"),
+        ("http://localhost:11434/v1", "http://localhost:11434/v1/chat/completions"),
+        # DeepSeek documents a base URL with no version segment and serves the
+        # endpoint directly beneath it.
+        ("https://api.deepseek.com", "https://api.deepseek.com/chat/completions"),
+        # A version segment that is not v1, and a path that has to survive.
+        (
+            "https://open.bigmodel.cn/api/paas/v4",
+            "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+        ),
+        # Providers that accept /v1 keep working when it is written out.
+        ("https://api.deepseek.com/v1", "https://api.deepseek.com/v1/chat/completions"),
+        # A full endpoint URL is accepted rather than doubled.
+        (
+            "https://api.deepseek.com/chat/completions",
+            "https://api.deepseek.com/chat/completions",
+        ),
+        # Trailing slashes are tolerated.
+        ("https://example.com/", "https://example.com/chat/completions"),
+    ],
+)
+async def test_request_url_comes_from_the_configured_base_url(
+    configured: str, expected: str
+) -> None:
+    """Every shape a provider documents must reach its own endpoint.
+
+    The request goes through a real transport rather than being inspected with
+    build_request, so the assertion covers the URL that is actually requested.
+    """
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(
+            status_code=200,
+            json={"choices": [{"message": {"content": "ok"}}]},
+        )
+
+    client_obj = OpenAICompatibleClient(
+        base_url=configured,
+        model="m",
+        transport=httpx.MockTransport(handler),
+    )
+    try:
+        assert await client_obj.generate_completion("hi") == "ok"
+    finally:
+        await client_obj.aclose()
+
+    assert seen == [expected]
+
+
+# Covers: AC-GEN-003-05, AC-GEN-003-08
+@pytest.mark.anyio
+async def test_streaming_requests_the_same_url_as_the_blocking_call() -> None:
+    """Both paths are built from one constant, so they cannot drift apart."""
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        body = b'data: {"choices":[{"delta":{"content":"hi"}}]}\n\ndata: [DONE]\n\n'
+        return httpx.Response(
+            status_code=200,
+            content=body,
+            headers={"content-type": "text/event-stream"},
+        )
+
+    client_obj = OpenAICompatibleClient(
+        base_url="https://api.openai.com/v1",
+        model="m",
+        transport=httpx.MockTransport(handler),
+    )
+    try:
+        chunks = [chunk async for chunk in client_obj.generate_completion_stream("hi")]
+    finally:
+        await client_obj.aclose()
+
+    assert chunks == ["hi"]
+    assert seen == ["https://api.openai.com/v1/chat/completions"]
+
+
+# Covers: AC-GEN-003-08
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        ("https://api.deepseek.com", "https://api.deepseek.com"),
+        ("https://api.deepseek.com/", "https://api.deepseek.com"),
+        ("https://api.deepseek.com/chat/completions", "https://api.deepseek.com"),
+        ("https://api.deepseek.com/chat/completions/", "https://api.deepseek.com"),
+        ("  https://api.deepseek.com  ", "https://api.deepseek.com"),
+        # Only the exact suffix is removed, so a path that merely resembles the
+        # endpoint keeps its meaning.
+        ("https://gateway.example.com/chat", "https://gateway.example.com/chat"),
+        ("https://api.openai.com/v1/chat/completions", "https://api.openai.com/v1"),
+    ],
+)
+def test_base_url_normalization(given: str, expected: str) -> None:
+    assert normalize_base_url(given) == expected
+
+
+# Covers: AC-GEN-003-08
+def test_normalization_cannot_change_a_url_that_already_works() -> None:
+    """Removing the endpoint path is idempotent, and re-appending it is exact.
+
+    That is what makes accepting both forms safe: a value that produced the right
+    request before normalization produces the same request after it.
+    """
+    for given in (
+        "https://api.deepseek.com/chat/completions",
+        "https://api.openai.com/v1/chat/completions",
+        "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+    ):
+        once = normalize_base_url(given)
+        assert normalize_base_url(once) == once
+        assert f"{once}/chat/completions" == given
 
 
 @pytest.mark.anyio

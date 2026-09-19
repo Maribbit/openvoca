@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.integrations.openai_compat import OpenAICompatibleClient
+from src.integrations.openai_compat import normalize_base_url
 from src.integrations.provider import LLMProvider
 from src.services.prompt_builder import (
     build_sentence_generation_prompt,
@@ -172,7 +173,10 @@ async def lifespan(application: FastAPI):  # noqa: ARG001
 app = FastAPI(title="OpenVoca API", lifespan=lifespan)
 init_settings_table()
 
-DEFAULT_ENDPOINT = "http://localhost:11434"
+# The version segment belongs to the provider. Ollama serves its OpenAI
+# compatibility API under /v1, so the default carries it; the client appends
+# only /chat/completions.
+DEFAULT_ENDPOINT = "http://localhost:11434/v1"
 DEFAULT_MODEL = ""
 PROVIDER_NAMESPACE = "provider"
 
@@ -459,6 +463,19 @@ class ProviderConfig(BaseModel):
     endpoint: str = Field(default=DEFAULT_ENDPOINT, max_length=500)
     model: str = Field(default=DEFAULT_MODEL, max_length=200)
     headers: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("endpoint")
+    @classmethod
+    def _normalize_endpoint(cls, value: str) -> str:
+        """Store the base URL, dropping the endpoint path if it was included.
+
+        Provider documentation shows both forms next to each other, so one field
+        accepts either. Normalizing here rather than in the client keeps the
+        stored settings, the running client and the value reported by
+        GET /api/provider in agreement; normalizing in the client would leave
+        the database holding something other than what the interface shows.
+        """
+        return normalize_base_url(value)
 
     @field_validator("headers")
     @classmethod

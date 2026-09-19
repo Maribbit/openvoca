@@ -78,7 +78,7 @@ export interface ProviderConfig {
 }
 
 const EMPTY_PROVIDER_STATE: ProviderState = {
-  endpoint: "http://localhost:11434",
+  endpoint: "http://localhost:11434/v1",
   model: "",
   headers: {},
   apiKeySet: false,

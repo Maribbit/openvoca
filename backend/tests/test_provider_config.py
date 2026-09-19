@@ -94,6 +94,59 @@ def test_changing_model_and_endpoint_preserves_api_key(
     assert get_namespace("provider")["apiKey"] == "sk-keep-me-123456"
 
 
+# --- Endpoint normalization at the write boundary ---
+
+
+# Covers: AC-GEN-003-08
+def test_a_full_endpoint_url_is_stored_as_its_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Provider docs show the base URL and a curl example side by side.
+
+    One field accepts either. Normalizing at the write boundary rather than
+    inside the client is what keeps the database, the running client and the
+    read model in agreement; normalizing in the client would leave the stored
+    value differing from the reported one.
+    """
+    _reset_provider(monkeypatch)
+
+    client.put(
+        "/api/provider",
+        json={
+            "endpoint": "https://api.deepseek.com/chat/completions",
+            "model": "deepseek-chat",
+        },
+    )
+
+    assert get_namespace("provider")["endpoint"] == "https://api.deepseek.com"
+    assert client.get("/api/provider").json()["endpoint"] == "https://api.deepseek.com"
+
+
+# Covers: AC-GEN-003-08
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        ("https://api.openai.com/v1", "https://api.openai.com/v1"),
+        ("https://api.deepseek.com", "https://api.deepseek.com"),
+        (
+            "https://open.bigmodel.cn/api/paas/v4",
+            "https://open.bigmodel.cn/api/paas/v4",
+        ),
+        ("https://api.deepseek.com/", "https://api.deepseek.com"),
+    ],
+)
+def test_version_prefixes_are_preserved_verbatim(
+    monkeypatch: pytest.MonkeyPatch, given: str, expected: str
+) -> None:
+    """Normalization removes only the endpoint path; the version segment is the
+    provider's and must survive unchanged, whatever it is called."""
+    _reset_provider(monkeypatch)
+
+    client.put("/api/provider", json={"endpoint": given, "model": "m"})
+
+    assert get_namespace("provider")["endpoint"] == expected
+
+
 # Covers: AC-SET-005-02
 def test_update_endpoint_keeps_runtime_and_persisted_in_sync(
     monkeypatch: pytest.MonkeyPatch,

@@ -3,12 +3,42 @@ from collections.abc import AsyncGenerator
 
 import httpx
 
+# Requested of whatever base URL is configured. Relative on purpose: httpx
+# concatenates a base URL with the request path rather than resolving the path
+# against it, so an absolute path here would append a second version segment to
+# a base URL that already carries one -- base https://api.openai.com/v1 with a
+# "/v1/chat/completions" path becomes /v1/v1/chat/completions.
+#
+# The version segment belongs to the provider, not to this client. OpenAI uses
+# /v1, Ollama exposes its compatibility API under /v1, Zhipu uses /api/paas/v4,
+# and DeepSeek serves /chat/completions with no version at all. Appending only
+# the endpoint path lets one field describe all of them.
+ENDPOINT_PATH = "chat/completions"
+
+
+def normalize_base_url(base_url: str) -> str:
+    """Return *base_url* without the endpoint path, if it was included.
+
+    One field accepts either a base URL or a full endpoint URL, which is what
+    provider documentation puts side by side: DeepSeek's guide shows a
+    ``base_url`` of ``https://api.deepseek.com`` and a ``curl`` line ending in
+    the request path. Stripping the suffix is idempotent, because appending
+    ENDPOINT_PATH reproduces exactly the value that was supplied, so this cannot
+    alter a URL that was already correct.
+    """
+    trimmed = base_url.strip().rstrip("/")
+    suffix = f"/{ENDPOINT_PATH}"
+    if trimmed.endswith(suffix):
+        return trimmed[: -len(suffix)]
+    return trimmed
+
 
 class OpenAICompatibleClient:
     """LLM client for any OpenAI-compatible chat completions API.
 
-    Works with OpenRouter, Groq, Together.ai, SiliconFlow, DeepSeek,
-    and any service that implements POST /v1/chat/completions.
+    Works with OpenRouter, Groq, Together.ai, SiliconFlow, DeepSeek, Zhipu,
+    Ollama, and any service that implements POST /chat/completions under some
+    base URL. The base URL carries whatever version prefix the provider uses.
 
     Uses a persistent ``httpx.AsyncClient`` to reuse TCP connections
     across requests, avoiding repeated DNS lookups and TLS handshakes.
@@ -24,7 +54,7 @@ class OpenAICompatibleClient:
         timeout: float = 60.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        self.base_url = normalize_base_url(base_url)
         self.model = model
         self.api_key = api_key
         self.extra_headers = dict(extra_headers or {})
@@ -61,7 +91,7 @@ class OpenAICompatibleClient:
         }
 
         response = await self._client.post(
-            "/v1/chat/completions",
+            ENDPOINT_PATH,
             json=payload,
             headers=headers,
         )
@@ -99,7 +129,7 @@ class OpenAICompatibleClient:
 
         async with self._client.stream(
             "POST",
-            "/v1/chat/completions",
+            ENDPOINT_PATH,
             json=payload,
             headers=headers,
         ) as response:

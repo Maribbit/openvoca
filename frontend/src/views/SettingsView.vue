@@ -172,7 +172,7 @@
                 <input
                   v-model="providerEndpoint"
                   type="text"
-                  placeholder="http://localhost:11434"
+                  placeholder="http://localhost:11434/v1"
                   class="rounded-xl border border-black/8 bg-paper px-4 py-2.5 font-mono text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
                   @change="saveProvider"
                 />
@@ -725,7 +725,7 @@
   const uiFontSize = ref<UiFontSizeOption>(loadUiFontSize());
 
   const selectedModel = ref("");
-  const providerEndpoint = ref("http://localhost:11434");
+  const providerEndpoint = ref("http://localhost:11434/v1");
   /** Draft value for a not-yet-saved key. Never holds a stored or masked value. */
   const providerKeyDraft = ref("");
   const apiKeySet = ref(false);
@@ -1031,7 +1031,7 @@
       .then(([provider]) => {
         applyProviderState(
           provider ?? {
-            endpoint: "http://localhost:11434",
+            endpoint: "http://localhost:11434/v1",
             model: DEFAULT_MODEL,
             headers: {},
             apiKeySet: false,
