@@ -64,6 +64,16 @@ uv run python scripts/bundle.py
 
 Produces `dist/openvoca-{version}-win-x64.zip` — a self-contained Windows package requiring no installation. See `scripts/bundle.py` for details.
 
+## Self-Hosting
+
+To run OpenVoca on a machine you own and reach it over a private network:
+
+```bash
+sudo python3 scripts/deploy.py <revision>
+```
+
+One command, and going back is the same command with the previous revision. See [docs/DEPLOY.md](./docs/DEPLOY.md) for the full procedure and [docs/specs/private-deployment.md](./docs/specs/private-deployment.md) for the design.
+
 ## Versioning and Contribution
 
 - **Version**: `VERSION` at the repository root (single source of truth)

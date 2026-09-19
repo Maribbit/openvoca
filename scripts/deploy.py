@@ -206,14 +206,32 @@ def switch_symlink(link: Path, target: Path) -> None:
         raise
 
 
-def write_revision_env(path: Path, revision: str) -> None:
-    """Record the revision the service should report once it restarts.
+def read_release_version(release: Path) -> str:
+    """Read the version the exported revision declares.
+
+    Transcription, not a decision: the number comes from the revision's own
+    VERSION file, the same source the release process treats as the single truth.
+    """
+    try:
+        return (release / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def write_revision_env(path: Path, revision: str, version: str) -> None:
+    """Record which revision and version the service should report on restart.
 
     Written through the same rename, so a restart cannot read a half-written
     file, and only ever names a revision whose code is already in place.
+
+    The version is not decoration: the update check returns early when it is
+    unset, so a deployment that omitted it would never offer an update at all.
     """
     pending = path.with_name(f"{path.name}.pending")
-    pending.write_text(f"OPENVOCA_REVISION={revision}\n", encoding="utf-8")
+    pending.write_text(
+        f"OPENVOCA_REVISION={revision}\nOPENVOCA_VERSION={version}\n",
+        encoding="utf-8",
+    )
     os.replace(pending, path)
 
 
@@ -260,7 +278,7 @@ def run_deploy(revision: str, layout: Layout, repository: Path) -> None:
 
     _announce("Switching")
     switch_symlink(layout.current, release)
-    write_revision_env(layout.revision_env, revision)
+    write_revision_env(layout.revision_env, revision, read_release_version(release))
 
     _announce("Restarting")
     restart()

@@ -1,0 +1,69 @@
+# OpenVoca service unit for a private deployment.
+#
+# Install to /etc/systemd/system/openvoca.service, then:
+#     systemctl daemon-reload
+#     systemctl enable --now openvoca
+#
+# Paths and the service name are the defaults in scripts/deploy.py. Changing
+# either means changing both; OPENVOCA_ROOT and OPENVOCA_DATA_DIR move the
+# deployment, and the unit has to be told where it went.
+#
+# See docs/DEPLOY.md for the full procedure.
+
+[Unit]
+Description=OpenVoca
+Documentation=https://github.com/Maribbit/openvoca
+After=network-online.target
+Wants=network-online.target
+
+# A revision whose database predates it refuses to start, so a restart loop is
+# the expected shape of that failure. Give up after a few attempts and let the
+# unit enter the failed state, where `systemctl status` shows it, instead of
+# retrying forever and burying the reason in the journal.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=exec
+
+# The application writes only to its data directory, which this user owns.
+User=openvoca
+Group=openvoca
+
+# Resolved through the `current` symlink, so a deployment changes what runs
+# without touching this file.
+WorkingDirectory=/opt/openvoca/current/backend
+
+# Written by scripts/deploy.py. Prefixed with `-` so a hand-run checkout that
+# has no deployment metadata still starts.
+EnvironmentFile=-/opt/openvoca/revision.env
+
+# Defaults. The override file is optional and, because systemd applies
+# EnvironmentFile after Environment, anything set there wins.
+Environment=OPENVOCA_DATA_DIR=/var/lib/openvoca
+Environment=OPENVOCA_HOST=0.0.0.0
+Environment=OPENVOCA_PORT=8000
+EnvironmentFile=-/etc/openvoca/openvoca.conf
+
+# Host and port are expanded by systemd rather than read by the application, so
+# the application gains no configuration surface it would have to validate.
+# No TLS flags: the private network provides transport security, and the
+# application must not be the thing holding a certificate.
+ExecStart=/opt/openvoca/current/backend/.venv/bin/python -m uvicorn src.main:app --host ${OPENVOCA_HOST} --port ${OPENVOCA_PORT}
+
+# Covers a crash and a killed process. A deliberate `systemctl stop` is not
+# restarted, which is what makes deployments able to shut the service down.
+Restart=always
+RestartSec=3
+
+# The service needs no privileges beyond its own directory. ProtectSystem=strict
+# makes the code tree read-only, so an accidental write into it fails here
+# rather than surviving until the next deployment replaces it.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/openvoca
+
+[Install]
+WantedBy=multi-user.target

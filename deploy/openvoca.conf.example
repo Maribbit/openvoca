@@ -1,0 +1,18 @@
+# Optional overrides for the OpenVoca service.
+#
+# Copy to /etc/openvoca/openvoca.conf and uncomment what you need, then:
+#     systemctl restart openvoca
+#
+# This file is loaded after the defaults in the unit, so anything set here wins.
+# It is optional: the unit starts without it.
+
+# Address to listen on. Keep 0.0.0.0 so the private network can reach the
+# service; 127.0.0.1 would only accept connections from the machine itself.
+# OPENVOCA_HOST=0.0.0.0
+
+# Port to listen on.
+# OPENVOCA_PORT=8000
+
+# Where the database lives. Point this at the same directory the deployment
+# uses, or the service will quietly start against a new, empty database.
+# OPENVOCA_DATA_DIR=/var/lib/openvoca

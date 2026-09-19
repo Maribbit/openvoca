@@ -8,19 +8,47 @@ commands themselves are real invocations of stand-ins placed on PATH. Nothing
 here starts a service or touches the network.
 """
 
+import asyncio
 import json
 import os
 import sqlite3
 import stat
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 import deploy
+import src.main as main_module
 from src.main import app
 
 client = TestClient(app)
+
+_EMPTY_UPDATE_INFO = {
+    "checked": False,
+    "hasUpdate": False,
+    "currentVersion": "",
+    "latestVersion": "",
+    "url": "",
+}
+
+
+class _OfflineClient:
+    """A client that fails, so the update check makes no network request."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        pass
+
+    async def __aenter__(self) -> "_OfflineClient":
+        return self
+
+    async def __aexit__(self, *exc_info) -> bool:
+        return False
+
+    async def get(self, url: str, **kwargs) -> None:
+        raise httpx.ConnectError("network access is not available in tests")
+
 
 _SOURCE_FILES = (
     "VERSION",
@@ -28,6 +56,8 @@ _SOURCE_FILES = (
     "backend/uv.lock",
     "frontend/package.json",
 )
+
+_FAKE_VERSION = "1.2.3"
 
 
 def _write_executable(path: Path, body: str) -> None:
@@ -47,9 +77,17 @@ log = os.environ.get("FAKE_LOG") if (os := __import__("os")) else None
 if "archive" in args:
     output = next(a.split("=", 1)[1] for a in args if a.startswith("--output="))
     revision = args[-1]
+
+    def content(name):
+        # VERSION holds a version number rather than a placeholder: the
+        # deployment reads it to tell the service what it is running.
+        if name == "VERSION":
+            return b"{_FAKE_VERSION}\\n"
+        return f"{{name}}@{{revision}}\\n".encode()
+
     with tarfile.open(output, "w") as tar:
         for name in names:
-            data = f"{{name}}@{{revision}}\\n".encode()
+            data = content(name)
             info = tarfile.TarInfo(name)
             info.size = len(data)
             tar.addfile(info, io.BytesIO(data))
@@ -314,12 +352,47 @@ def test_successful_deployment_switches_records_and_restarts(
     rows = sqlite3.connect(snapshots[0]).execute("SELECT * FROM wordrecord").fetchall()
     assert rows == [("harbor",)]
 
-    # The service reports this revision once it restarts.
-    assert layout.revision_env.read_text() == "OPENVOCA_REVISION=abc123\n"
+    # The service reports this revision once it restarts, and knows which
+    # version to compare against for updates. Without the version the update
+    # check returns early, so a deployment that omitted it would never offer an
+    # update at all.
+    env_file = layout.revision_env.read_text()
+    assert "OPENVOCA_REVISION=abc123" in env_file
+    assert "OPENVOCA_VERSION=1.2.3" in env_file
 
     tools_used = [call["tool"] for call in _calls(log)]
     assert tools_used[-1] == "systemctl"
     assert tools_used.index("pnpm") < tools_used.index("systemctl")
+
+
+# Covers: AC-PRIV-001-05
+def test_the_deployment_produces_an_environment_the_update_check_can_use(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tools
+) -> None:
+    """The version the deployment records must be the one the application reads.
+
+    These live in different files and different processes, so nothing but a test
+    ties them together. Left untied, the deployment would look complete while the
+    update notice silently never appeared, because the check returns early when
+    no version is set.
+    """
+    _log, _binary_dir = tools
+    layout = _layout(tmp_path, monkeypatch)
+    _seed_database(layout)
+    _serve(layout, "previous")
+    monkeypatch.setattr(main_module, "_update_info", dict(_EMPTY_UPDATE_INFO))
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", _OfflineClient)
+
+    assert deploy.main(["abc123"]) == 0
+
+    # Apply exactly what the service manager would load from the file.
+    for line in layout.revision_env.read_text().splitlines():
+        key, _, value = line.partition("=")
+        monkeypatch.setenv(key, value)
+
+    asyncio.run(main_module._check_for_updates())
+
+    assert main_module._update_info["currentVersion"] == _FAKE_VERSION
 
 
 # Covers: AC-PRIV-003-06

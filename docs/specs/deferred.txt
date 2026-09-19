@@ -20,12 +20,8 @@
 # AC-PRIV-002-01..07 (the startup checks) are covered by the same file.
 # AC-PRIV-003-01..08 (deployment atomicity) are covered by
 # backend/tests/test_deployment_atomicity.py.
-
-AC-PRIV-004-01
-AC-PRIV-004-02
-AC-PRIV-004-03
-AC-PRIV-004-04
-AC-PRIV-004-05
+# AC-PRIV-004-01..05 (process supervision) are covered by
+# backend/tests/test_process_supervision.py.
 
 # Deferred by design rather than by ordering: the update request path must not
 # be built before process supervision exists, because its failure mode is the
