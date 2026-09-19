@@ -130,13 +130,17 @@ def report_startup_paths() -> None:
 
     A wrong path is the hardest deployment failure to diagnose: the API answers
     normally, every probe passes, and only the interface is blank.
+
+    All three paths are always reported, whether or not they resolve. Printing
+    the interface path only when a build is present would make the output depend
+    on the environment and would omit the line an operator needs exactly when it
+    is missing.
     """
     db_path = database_path()
     print(f"Data directory : {db_path.parent}", flush=True)
     print(f"Database       : {db_path}", flush=True)
-    if _frontend_dist.exists():
-        print(f"Frontend       : {_frontend_dist}", flush=True)
-    else:
+    print(f"Frontend       : {_frontend_dist}", flush=True)
+    if not _frontend_dist.exists():
         print(
             f"WARNING: no frontend build at {_frontend_dist}. "
             "The API will answer but the interface will not load.",
@@ -953,21 +957,43 @@ def delete_all_settings() -> dict[str, int]:
 
 # --- Frontend SPA (must be last) ---
 
-if _frontend_dist.exists():
-    app.mount(
-        "/assets",
-        StaticFiles(directory=_frontend_dist / "assets"),
-        name="static-assets",
-    )
 
-    @app.get("/", include_in_schema=False)
+def register_spa(application: FastAPI, dist: Path) -> bool:
+    """Serve the interface from *dist*, returning whether there was one.
+
+    Registration is a function rather than a module-level conditional so that
+    what it registers can be exercised without a build being present. A test
+    guarded by ``hasattr`` on routes that only exist when a build happens to sit
+    on disk passes without testing anything, which is how a criterion ends up
+    with a green test and no coverage.
+
+    The SPA fallback must be registered after every API route, or it would
+    swallow them.
+    """
+    if not dist.exists():
+        return False
+
+    assets = dist / "assets"
+    if not assets.is_dir():
+        # A build without assets is malformed rather than absent, and StaticFiles
+        # would fail with a message about a directory rather than about a build.
+        raise RuntimeError(f"frontend build at {dist} has no assets directory")
+
+    application.mount("/assets", StaticFiles(directory=assets), name="static-assets")
+
+    @application.get("/", include_in_schema=False)
     async def serve_root() -> FileResponse:
-        return FileResponse(_frontend_dist / "index.html")
+        return FileResponse(dist / "index.html")
 
-    @app.get("/{path:path}", include_in_schema=False)
+    @application.get("/{path:path}", include_in_schema=False)
     async def spa_fallback(path: str) -> FileResponse:
         # Serve real files (e.g. favicon.svg) from dist root before SPA fallback
-        candidate = _frontend_dist / path
-        if candidate.is_file() and _frontend_dist in candidate.resolve().parents:
+        candidate = dist / path
+        if candidate.is_file() and dist in candidate.resolve().parents:
             return FileResponse(candidate)
-        return FileResponse(_frontend_dist / "index.html")
+        return FileResponse(dist / "index.html")
+
+    return True
+
+
+register_spa(app, _frontend_dist)
