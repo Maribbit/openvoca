@@ -107,6 +107,7 @@ entry = {{
     "argv": sys.argv[1:],
     "cwd": os.getcwd(),
     "data_dir": os.environ.get("OPENVOCA_DATA_DIR", ""),
+    "uv_python_dir": os.environ.get("UV_PYTHON_INSTALL_DIR", ""),
 }}
 log = os.environ["FAKE_LOG"]
 with open(log, "a", encoding="utf-8") as handle:
@@ -523,6 +524,107 @@ def test_the_temporary_archive_is_removed_after_export(
 
     leftovers = list((tmp_path / "releases").glob("*.tar"))
     assert leftovers == []
+
+
+# Covers: AC-PRIV-001-07
+@pytest.mark.parametrize("home", [Path.home(), Path("/root"), Path("/home/someone")])
+def test_the_interpreter_directory_is_never_under_a_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, home: Path
+) -> None:
+    """A home directory is the one place the interpreter must not live.
+
+    Not for permission reasons. The unit's ProtectHome makes home directories
+    absent from the service's namespace rather than read-only, so an interpreter
+    under any home is unreachable no matter what mode it has.
+    """
+    layout = deploy.Layout(root=tmp_path / "opt", data_dir=tmp_path / "var")
+
+    assert not layout.python_dir.is_relative_to(home)
+
+
+def _uv_calls(log: Path) -> list[dict]:
+    return [call for call in _calls(log) if call["tool"] == "uv"]
+
+
+# Covers: AC-PRIV-001-08
+@pytest.mark.parametrize("with_snapshot", [True, False])
+def test_every_uv_invocation_is_told_where_to_manage_python(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tools,
+    with_snapshot: bool,
+) -> None:
+    """Every invocation, not only the install.
+
+    The interpreter is recorded inside the virtualenv, so one invocation falling
+    back to the HOME-derived default reintroduces the failure. Both the
+    snapshot and the empty-directory paths are covered because they reach
+    preflight through different code.
+    """
+    log, _binary_dir = tools
+    layout = _layout(tmp_path, monkeypatch)
+    if with_snapshot:
+        _seed_database(layout)
+    _serve(layout, "previous")
+
+    assert deploy.main(["abc123"]) == 0
+
+    uv_calls = _uv_calls(log)
+    assert len(uv_calls) >= 2  # the install and the preflight
+    for call in uv_calls:
+        assert call["uv_python_dir"], f"no interpreter directory for {call['argv']}"
+        assert Path(call["uv_python_dir"]) == layout.python_dir
+        assert not Path(call["uv_python_dir"]).is_relative_to(Path.home())
+
+
+# Covers: AC-PRIV-001-08
+@pytest.mark.parametrize("root", [Path("/opt/openvoca"), Path("/srv/openvoca")])
+def test_the_interpreter_directory_follows_the_deployment_root(
+    root: Path,
+) -> None:
+    """It is derived from the layout, not from the caller's environment.
+
+    A deployment that hard-coded a path would break the moment OPENVOCA_ROOT
+    moved, and would leave no way to see where its interpreters went.
+    """
+    layout = deploy.layout_from_env(
+        {"OPENVOCA_ROOT": str(root), "OPENVOCA_DATA_DIR": "/var/lib/openvoca"}
+    )
+
+    assert layout.python_dir == root / "python"
+    assert deploy.uv_env(layout) == {"UV_PYTHON_INSTALL_DIR": str(root / "python")}
+
+
+# Covers: AC-PRIV-001-08
+def test_the_interpreter_directory_is_outside_home_by_default() -> None:
+    """The shipped defaults must already satisfy the constraint.
+
+    A default under the deploying user's home would make the failure the normal
+    case rather than something that needs to be configured away.
+    """
+    layout = deploy.layout_from_env({})
+
+    assert not layout.python_dir.is_relative_to(Path.home())
+    assert not str(layout.python_dir).startswith("/root")
+
+
+# Covers: AC-PRIV-001-07
+def test_the_deployment_reports_where_interpreters_live(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tools,
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """The location has to be visible, because the service's ability to start
+    depends on it and nothing else announces it."""
+    _log, _binary_dir = tools
+    layout = _layout(tmp_path, monkeypatch)
+    _seed_database(layout)
+    _serve(layout, "previous")
+
+    assert deploy.main(["abc123"]) == 0
+
+    assert str(layout.python_dir) in capsys.readouterr().out
 
 
 # Covers: AC-PRIV-003-06

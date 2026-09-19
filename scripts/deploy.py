@@ -22,6 +22,7 @@ Layout, all overridable through the environment:
       releases/<revision>/     an export of that revision
       current -> releases/<revision>
       revision.env             the revision the service reports
+      python/                  interpreters, outside every home; see uv_env
 
     OPENVOCA_DATA_DIR default /var/lib/openvoca
       openvoca.db              the database, outside every revision
@@ -87,6 +88,15 @@ class Layout:
     @property
     def snapshots(self) -> Path:
         return self.data_dir / "snapshots"
+
+    @property
+    def python_dir(self) -> Path:
+        """Where uv installs the interpreters this deployment runs on.
+
+        Inside the deployment root rather than under a home directory. The
+        reason is in uv_env, and it is not a preference.
+        """
+        return self.root / "python"
 
     def release(self, revision: str) -> Path:
         return self.releases / revision
@@ -185,9 +195,31 @@ def materialize(repository: Path, revision: str, release: Path) -> None:
         archive.unlink(missing_ok=True)
 
 
-def install_backend(release: Path) -> None:
+def uv_env(layout: Layout) -> dict[str, str]:
+    """Environment that keeps uv's managed interpreter inside the deployment.
+
+    A virtualenv does not contain an interpreter; it references one.
+    ``.venv/bin/python`` is a symlink to it and ``pyvenv.cfg`` records the same
+    path, so the service starts only if the service user can reach that path.
+
+    uv places managed interpreters under a directory derived from ``HOME``, and
+    a deployment runs as root, so the default would be ``/root/.local/share/uv``.
+    The unit's ``ProtectHome=true`` makes home directories entirely inaccessible
+    to the service -- not read-only, but absent from its namespace -- so the
+    interpreter would be unreachable and the service would not start. Dropping
+    that hardening would not help either, because /root is mode 0700 and the
+    service user cannot traverse it.
+
+    No permission setting fixes this, because the path itself is the problem.
+    The deployment therefore decides where interpreters live instead of
+    inheriting the answer from whoever happened to invoke it.
+    """
+    return {"UV_PYTHON_INSTALL_DIR": str(layout.python_dir)}
+
+
+def install_backend(release: Path, env: Mapping[str, str]) -> None:
     """Install this revision's Python dependencies from its own lock file."""
-    _run(["uv", "sync", "--frozen"], cwd=release / "backend")
+    _run(["uv", "sync", "--frozen"], cwd=release / "backend", env=env)
 
 
 def build_frontend(release: Path) -> None:
@@ -227,20 +259,29 @@ def snapshot_database(database: Path, snapshots: Path, stamp: str) -> Path | Non
     return destination
 
 
-def preflight(release: Path, snapshot: Path) -> None:
-    """Run the new revision's own startup checks, against a copy of the database.
+def run_preflight(release: Path, data_dir: Path, env: Mapping[str, str]) -> None:
+    """Run the new revision's own startup checks against *data_dir*.
 
-    Against a copy rather than the live database because importing the
-    application creates missing tables. A revision that is about to be rejected
-    must not have written anything to the data it was being tested against.
+    A single call site for both the snapshot and empty-directory cases, so the
+    environment uv is given cannot be correct in one and forgotten in the other.
+    """
+    _run(
+        ["uv", "run", "python", "-m", "src.preflight"],
+        cwd=release / "backend",
+        env={**env, "OPENVOCA_DATA_DIR": str(data_dir)},
+    )
+
+
+def preflight(release: Path, snapshot: Path, env: Mapping[str, str]) -> None:
+    """Check a revision against a copy of the snapshot rather than the database.
+
+    Importing the application creates missing tables, so testing against the
+    live database would let a revision that is about to be rejected write to
+    production data.
     """
     with tempfile.TemporaryDirectory(prefix="openvoca-preflight-") as scratch:
         shutil.copy2(snapshot, Path(scratch) / DATABASE_NAME)
-        _run(
-            ["uv", "run", "python", "-m", "src.preflight"],
-            cwd=release / "backend",
-            env={"OPENVOCA_DATA_DIR": scratch},
-        )
+        run_preflight(release, Path(scratch), env)
 
 
 def switch_symlink(link: Path, target: Path) -> None:
@@ -308,14 +349,23 @@ def run_deploy(revision: str, layout: Layout, repository: Path) -> None:
     """Perform the deployment, in order, stopping at the first failure."""
     release = layout.release(revision)
 
-    _announce("Checking the toolchain")
+    _announce("Checking the environment")
     require_tools()
+    # Printed rather than left implicit. Whether the service can start depends on
+    # the interpreter path, and the failure it causes -- the service refusing to
+    # come up, with nothing in the deployment output to explain why -- is the
+    # reason this was hard to find in the first place.
+    print(f"   Interpreters : {layout.python_dir}", flush=True)
+    print(f"   Releases     : {layout.releases}", flush=True)
+    print(f"   Data         : {layout.data_dir}", flush=True)
+
+    uv_vars = uv_env(layout)
 
     _announce(f"Exporting {revision}")
     materialize(repository, revision, release)
 
     _announce("Installing backend dependencies")
-    install_backend(release)
+    install_backend(release, uv_vars)
 
     _announce("Building the interface")
     build_frontend(release)
@@ -328,15 +378,11 @@ def run_deploy(revision: str, layout: Layout, repository: Path) -> None:
     _announce("Checking the new revision against the data")
     if snapshot is None:
         # Nothing to test against; the revision creates its own schema on first
-        # start. Importing it still proves the code loads.
+        # start. Importing it still proves the code loads and the toolchain works.
         with tempfile.TemporaryDirectory(prefix="openvoca-preflight-") as scratch:
-            _run(
-                ["uv", "run", "python", "-m", "src.preflight"],
-                cwd=release / "backend",
-                env={"OPENVOCA_DATA_DIR": scratch},
-            )
+            run_preflight(release, Path(scratch), uv_vars)
     else:
-        preflight(release, snapshot)
+        preflight(release, snapshot, uv_vars)
 
     _announce("Switching")
     switch_symlink(layout.current, release)

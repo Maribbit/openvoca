@@ -61,11 +61,20 @@ directory, so a database stored inside one would be replaced with it.
   releases/<revision>/                one export per revision
   current -> releases/<revision>      what the service runs; the only switch
   revision.env                        revision and version the service reports
+  python/                             interpreters uv installs for this deployment
 
 /var/lib/openvoca/                    data, never touched by a deployment
   openvoca.db
   snapshots/                          one SQLite snapshot per deployment
 ```
+
+`python/` is outside every home directory on purpose. A virtualenv references
+its interpreter rather than containing it, and the unit's `ProtectHome=true`
+makes home directories absent from the service's namespace — so an interpreter
+under one would leave the service unable to start, whatever its permissions.
+Because a deployment runs as root, `HOME` is root's, and uv's default location
+would be `/root/.local/share/uv/python`. `deploy.py` pins the location instead
+of inheriting it.
 
 Overridable through the environment, read by `scripts/deploy.py`:
 
@@ -229,6 +238,20 @@ or migrate the database. Rolling back is the normal answer.
 
 **If it says `no interface build`**, the frontend build is missing from that
 revision. Re-run the deployment.
+
+**If the service exits immediately and the journal shows nothing useful**, check
+where the interpreter lives:
+
+```bash
+readlink -f /opt/openvoca/current/backend/.venv/bin/python
+```
+
+A path under `/root` or `/home` cannot be reached by the service, because
+`ProtectHome=true` removes those directories from its namespace. This happens
+when a deployment ran without `UV_PYTHON_INSTALL_DIR` set — usually because an
+older `deploy.py` was used, or the variable was overridden in
+`/etc/openvoca/openvoca.conf`. Deploy again with the current `deploy.py`; it
+prints the interpreter directory it uses at the start of every run.
 
 **If the unit is in `failed` state**, the restart limit was reached. Fix the
 cause, then `sudo systemctl reset-failed openvoca`.
