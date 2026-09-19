@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.10.4
+
+Date: 2026-09-19
+
+### Fixed
+- **The provider endpoint could not accept the value its documentation gives.** The client requested an absolute `/v1/chat/completions`, but `httpx` concatenates a base URL with the request path rather than resolving the path against it. A base URL carrying `/v1` — which is what OpenAI's own documentation tells you to use — therefore produced `/v1/v1/chat/completions`. The most natural value a user could enter was the one guaranteed to fail, and only the old default of `http://localhost:11434` happened to avoid it. The request path is now relative, and the version segment is carried by the configured base URL.
+  - `/v1` is **not** an OpenAI-wide convention; it is OpenAI's own version segment. Ollama exposes its compatibility API under `/v1`, Zhipu uses `/api/paas/v4`, and DeepSeek documents a base URL of `https://api.deepseek.com` and serves `/chat/completions` with no version at all. What is common is base URL plus `/chat/completions`, which is also the OpenAI SDK's semantics: its default base URL already contains `/v1` and it appends only the endpoint path.
+  - The endpoint field now accepts either a base URL or a full endpoint URL, because provider documentation puts the two side by side. Normalization is idempotent, so a URL that already worked is unchanged.
+  - **Existing configurations may need updating.** A base URL that worked before because it lacked a version segment still works, but `http://localhost:11434` without `/v1` does not reach Ollama's compatibility API. The default is now `http://localhost:11434/v1`.
+- **A service that would not survive a reboot was never reported.** Starting at boot comes from `systemctl enable`, a one-time step during installation. A deployment restarted the service and never enabled it, so a missed installation step left a service that worked perfectly until the machine next restarted — possibly weeks later, with no recent change to suspect and nothing in any log to connect it to. Deployments now check and warn. `enabled-runtime` and `static` count as failures despite both exiting zero: the first writes its symlink into `/run`, which a reboot clears, and the second means the unit cannot be enabled at all.
+
+### Changed
+- **The endpoint hint and the bundle setup instructions show each provider's real form.** The hint previously said to enter the base URL only and gave `http://localhost:11434` as its example, which is now the one value that does not work for Ollama. The bundle templates listed `https://api.openai.com`, `https://openrouter.ai/api` and `https://api.siliconflow.cn` without version segments — examples that would have been wrong under the new semantics. They now show each provider's actual URL, including DeepSeek's, which has no version segment.
+
+### Added
+- **`AC-GEN-003-08`** — The request path is appended to the base URL, path segments in the base URL are preserved, and a configured value that already contains the endpoint path is normalized rather than doubled. The spec also records why the version segment belongs to the provider rather than the client.
+- **Deployment documentation on boot persistence** — How to check it without rebooting, which `systemctl is-enabled` answers look like success but are not, and why a deployment is not a reboot: a restart inherits the running service's environment while a boot builds it from scratch, so a service can survive restarts for months and fail on the first boot.
+
+### Changed Files
+- `backend/src/integrations/openai_compat.py` — `ENDPOINT_PATH`, `normalize_base_url()`, relative request path.
+- `backend/src/main.py` — Endpoint normalization at the write boundary; default carries Ollama's `/v1`.
+- `backend/tests/test_openai_compat.py` — URL-shape matrix through a real transport, streaming parity, normalization and idempotence.
+- `backend/tests/test_provider_config.py` — Write-boundary normalization and version-segment preservation.
+- `frontend/src/api/settings.ts`, `frontend/src/views/SettingsView.vue`, `frontend/src/composables/useI18n.ts` — Default endpoint and hint text.
+- `scripts/templates/README.*.txt` — Provider examples with their version segments.
+- `docs/specs/provider-generation.md` — `AC-GEN-003-01` reworded, `AC-GEN-003-08` added.
+- `scripts/deploy.py` — `boot_start_state()` and `report_boot_start()`.
+- `docs/DEPLOY.md` — Boot persistence section and troubleshooting entry.
+- `backend/tests/test_deployment_atomicity.py` — Boot-state reporting across every `is-enabled` answer.
+- `VERSION`, `frontend/package.json`, `backend/pyproject.toml` — Version bumped.
+
 ## v0.10.3
 
 Date: 2026-09-19
