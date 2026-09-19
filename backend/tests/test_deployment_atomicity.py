@@ -395,6 +395,83 @@ def test_the_deployment_produces_an_environment_the_update_check_can_use(
     assert main_module._update_info["currentVersion"] == _FAKE_VERSION
 
 
+# Covers: AC-PRIV-003-04
+def test_a_missing_executable_becomes_a_deployment_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """subprocess reports an absent executable as a plain FileNotFoundError.
+
+    Left alone it escapes the handler in main(), so the operator gets a traceback
+    instead of being told which revision is still serving. Raising DeployError
+    keeps every failure on one path.
+    """
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+
+    with pytest.raises(deploy.DeployError, match="is not on PATH"):
+        deploy._run(["uv", "sync"], cwd=tmp_path)
+
+
+# Covers: AC-PRIV-003-04
+def test_missing_tool_stops_the_deployment_before_any_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tools,
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """An unreachable toolchain must be detected while nothing has been done.
+
+    Failing at the step that needed the tool would leave a half-built release
+    directory behind, and the check itself costs nothing. Most often the tool is
+    installed but the caller's PATH cannot see it -- sudo replaces PATH with its
+    own secure_path -- so the message has to name the PATH that was searched.
+    """
+    log, binary_dir = tools
+    layout = _layout(tmp_path, monkeypatch)
+    _seed_database(layout)
+    previous = _serve(layout, "previous")
+    (binary_dir / "uv").unlink()
+    # PATH must contain only the stand-ins. Prepending them would leave the real
+    # tools reachable, and the check would pass while the test believed it had
+    # removed one.
+    monkeypatch.setenv("PATH", str(binary_dir))
+
+    code = deploy.main(["next"])
+    err = capsys.readouterr().err
+
+    assert code == 1
+    assert "uv" in err
+    assert "PATH searched" in err
+    # The message points at the invocation that would work.
+    assert 'sudo env "PATH=$PATH"' in err
+    # Nothing ran, so nothing was left behind.
+    assert _calls(log) == []
+    assert not layout.release("next").exists()
+    assert Path(os.readlink(layout.current)) == previous
+
+
+# Covers: AC-PRIV-003-08
+def test_a_missing_tool_still_reports_the_revision_in_service(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tools,
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """Even a failure this early must leave the operator knowing where they are."""
+    _log, binary_dir = tools
+    layout = _layout(tmp_path, monkeypatch)
+    _seed_database(layout)
+    _serve(layout, "previous")
+    (binary_dir / "pnpm").unlink()
+    monkeypatch.setenv("PATH", str(binary_dir))
+
+    code = deploy.main(["next"])
+    err = capsys.readouterr().err
+
+    assert code == 1
+    assert "Still serving previous." in err
+    assert "To go back: deploy.py previous" in err
+
+
 # Covers: AC-PRIV-003-06
 def test_restart_is_what_the_service_is_told_to_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tools

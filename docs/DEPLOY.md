@@ -30,6 +30,27 @@ The private network is out of scope here. Tailscale and WireGuard both work; so
 does a plain LAN, with the caveat that plain HTTP on a shared network is
 readable by anyone on it.
 
+### Why the commands below look unusual
+
+The deployment runs as root, and **sudo replaces `PATH` with its own
+`secure_path`**. That path normally contains `/usr/bin` and `/usr/local/bin` but
+not the directories user-installed tools live in — `~/.local/bin` (the standard
+location for uv's installer), Homebrew, `mise`, `nvm`, `snap`. So `git` is found
+and `uv` is not, which is why a deployment can get past the export and fail at
+the dependency install with `No such file or directory: 'uv'`.
+
+Every command below therefore passes your `PATH` through explicitly:
+
+```bash
+sudo env "PATH=$PATH" python3 scripts/deploy.py <revision>
+```
+
+Root is needed for two steps: reading the database for a snapshot (it is
+`0600` and owned by the service user, deliberately) and restarting the service.
+The deployment checks that all four tools are reachable *before* it does any
+work, and if one is missing it prints the `PATH` it searched rather than
+failing halfway through.
+
 ## Layout
 
 Two roots, and the separation is the whole point: an update replaces a code
@@ -99,7 +120,7 @@ to change the port. The service starts without that file.
 ```bash
 cd /srv/openvoca-src
 sudo git fetch --tags
-sudo python3 scripts/deploy.py v0.10.2
+sudo env "PATH=$PATH" python3 scripts/deploy.py v0.10.2
 ```
 
 Pass the tag or commit you want. The script exports it, installs its
@@ -131,14 +152,14 @@ your model provider in Settings.
 ```bash
 cd /srv/openvoca-src
 sudo git fetch --tags
-sudo python3 scripts/deploy.py <new-revision>
+sudo env "PATH=$PATH" python3 scripts/deploy.py <new-revision>
 ```
 
 That is the whole procedure. There is no separate rollback command: going back
 is the same command with the previous revision.
 
 ```bash
-sudo python3 scripts/deploy.py <previous-revision>
+sudo env "PATH=$PATH" python3 scripts/deploy.py <previous-revision>
 ```
 
 ## What a deployment guarantees
@@ -157,6 +178,20 @@ sudo python3 scripts/deploy.py <previous-revision>
   that is about to be rejected has not written anything.
 
 ## When something goes wrong
+
+### A tool cannot be found
+
+```
+Deployment failed: tools not found on PATH: uv, pnpm, systemctl
+  PATH searched: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+```
+
+This is the sudo `PATH` problem described above, not a missing installation.
+`git` is in `/usr/bin` so it is found; `uv` and `pnpm`, installed for your user,
+are not. Use the `sudo env "PATH=$PATH"` form. To confirm a tool is genuinely
+installed, run `command -v uv` as yourself.
+
+Nothing has been changed when this happens — the check runs before any work.
 
 ### The service will not start
 

@@ -1,7 +1,12 @@
 """Move a private deployment to a different revision of this repository.
 
 Usage:
-    uv run python scripts/deploy.py <revision>
+    python3 scripts/deploy.py <revision>
+
+The script needs only the standard library, so it runs under the system
+interpreter. It does invoke git, uv and pnpm, and those must be on the PATH it
+is given: under sudo, PATH is replaced by sudo's own secure_path, which usually
+excludes user-installed tools. See docs/DEPLOY.md.
 
 The script is deliberately ignorant. It does not compare versions, decide
 whether a migration is needed, or roll back. Each step either succeeds or aborts
@@ -41,6 +46,9 @@ DEFAULT_ROOT = Path("/opt/openvoca")
 DEFAULT_DATA_DIR = Path("/var/lib/openvoca")
 DATABASE_NAME = "openvoca.db"
 SERVICE_NAME = "openvoca"
+
+# Tools the deployment invokes. Checked before any work begins; see require_tools.
+_REQUIRED_TOOLS = ("git", "uv", "pnpm")
 
 USAGE = "usage: deploy.py <revision>"
 
@@ -99,9 +107,48 @@ def _announce(step: str) -> None:
 def _run(argv: list[str], *, cwd: Path, env: Mapping[str, str] | None = None) -> None:
     print(f"   $ {' '.join(argv)}", flush=True)
     merged = dict(os.environ) if env is None else {**os.environ, **env}
-    result = subprocess.run(argv, cwd=cwd, env=merged)
+    try:
+        result = subprocess.run(argv, cwd=cwd, env=merged)
+    except FileNotFoundError as error:
+        # A missing executable raises FileNotFoundError, which is not a
+        # DeployError and would escape the handler in main() -- costing the
+        # operator the message telling them the previous revision is still
+        # serving, which is the one thing a failed deployment must say.
+        raise DeployError(f"{argv[0]} is not on PATH") from error
     if result.returncode != 0:
         raise DeployError(f"{argv[0]} exited with {result.returncode}")
+
+
+def restart_command() -> str:
+    """The command that makes the service pick up a new revision."""
+    return os.environ.get("OPENVOCA_RESTART_CMD", f"systemctl restart {SERVICE_NAME}")
+
+
+def require_tools() -> None:
+    """Fail before any work when a tool the deployment needs is unreachable.
+
+    Checking first costs nothing and is the only point at which a toolchain
+    problem is free: further in, a release directory has already been created and
+    a failed run leaves debris behind for the next one to clean up.
+
+    The PATH that was searched is part of the message because the usual cause is
+    not that the tool is absent but that the caller's PATH is not the one the
+    tool lives on. sudo replaces PATH with its own secure_path, which normally
+    excludes user-installed tools, and the resulting "not found" is otherwise
+    indistinguishable from a real absence.
+    """
+    needed = [*_REQUIRED_TOOLS, restart_command().split()[0]]
+    missing = [tool for tool in needed if shutil.which(tool) is None]
+    if not missing:
+        return
+
+    raise DeployError(
+        f"tools not found on PATH: {', '.join(missing)}\n"
+        f"  PATH searched: {os.environ.get('PATH', '')}\n"
+        '  Under sudo, PATH is replaced by its own secure_path. Re-run with the\n'
+        '  PATH that can see these tools, for example:\n'
+        '    sudo env "PATH=$PATH" python3 scripts/deploy.py <revision>'
+    )
 
 
 def materialize(repository: Path, revision: str, release: Path) -> None:
@@ -237,10 +284,13 @@ def write_revision_env(path: Path, revision: str, version: str) -> None:
 
 def restart() -> None:
     """Restart the service so it picks up the new revision."""
-    command = os.environ.get("OPENVOCA_RESTART_CMD", f"systemctl restart {SERVICE_NAME}")
+    command = restart_command()
     argv = command.split()
     print(f"   $ {command}", flush=True)
-    result = subprocess.run(argv)
+    try:
+        result = subprocess.run(argv)
+    except FileNotFoundError as error:
+        raise DeployError(f"restart failed: {argv[0]} is not on PATH") from error
     if result.returncode != 0:
         raise DeployError(f"restart failed: {command} exited with {result.returncode}")
 
@@ -248,6 +298,9 @@ def restart() -> None:
 def run_deploy(revision: str, layout: Layout, repository: Path) -> None:
     """Perform the deployment, in order, stopping at the first failure."""
     release = layout.release(revision)
+
+    _announce("Checking the toolchain")
+    require_tools()
 
     _announce(f"Exporting {revision}")
     materialize(repository, revision, release)
