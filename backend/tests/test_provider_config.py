@@ -5,6 +5,9 @@ of endpoint/model, has an explicit set/clear lifecycle, and never appears on a
 generic settings read path.
 """
 
+import json
+
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -39,6 +42,23 @@ def _reset_provider(monkeypatch: pytest.MonkeyPatch):
     init_settings_table(engine)
     monkeypatch.setattr(main_module, "llm", main_module._load_provider())
     return engine
+
+
+def _recording_client_factory(handler):
+    """A stand-in for ``httpx.AsyncClient`` bound to *handler*.
+
+    The test endpoint builds its own client rather than reusing the active one,
+    which is the behaviour under test. That leaves the transport as the only
+    seam: this keeps the real client, including its timeouts and close
+    semantics, and swaps what the requests travel over.
+    """
+    real = httpx.AsyncClient
+
+    def factory(*args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        return real(*args, **kwargs)
+
+    return factory
 
 
 # --- Read-model: key state is expressed without exposing the key ---
@@ -145,6 +165,323 @@ def test_version_prefixes_are_preserved_verbatim(
     client.put("/api/provider", json={"endpoint": given, "model": "m"})
 
     assert get_namespace("provider")["endpoint"] == expected
+
+
+# --- Extra request body fields ---
+
+
+def _save_fields(monkeypatch: pytest.MonkeyPatch, fields: dict) -> object:
+    _reset_provider(monkeypatch)
+    return client.put(
+        "/api/provider",
+        json={
+            "endpoint": "https://api.example.com",
+            "model": "m",
+            "bodyFields": fields,
+        },
+    )
+
+
+# Covers: AC-GEN-003-09
+def test_body_fields_are_persisted_and_reported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The write path and the read model must agree, as with headers."""
+    response = _save_fields(monkeypatch, {"reasoning_effort": "none"})
+
+    assert response.status_code == 200
+    assert response.json()["bodyFields"] == {"reasoning_effort": "none"}
+    assert json.loads(get_namespace("provider")["bodyFields"]) == {
+        "reasoning_effort": "none"
+    }
+    assert client.get("/api/provider").json()["bodyFields"] == {
+        "reasoning_effort": "none"
+    }
+
+
+# Covers: AC-GEN-003-11
+def test_nested_and_boolean_values_survive_a_round_trip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Providers disagree on shape, so the stored value keeps its own.
+
+    A boolean coerced to the string "false", or a nested object flattened, would
+    be read differently by different providers -- and the difference would look
+    like a model problem rather than a storage one.
+    """
+    fields = {
+        "reasoning_effort": "none",
+        "enable_thinking": False,
+        "thinking": {"type": "disabled"},
+        "chat_template_kwargs": {"enable_thinking": False},
+    }
+
+    assert _save_fields(monkeypatch, fields).status_code == 200
+
+    stored = client.get("/api/provider").json()["bodyFields"]
+    assert stored == fields
+    assert stored["enable_thinking"] is False
+    assert stored["thinking"] == {"type": "disabled"}
+
+
+# Covers: AC-GEN-003-10
+@pytest.mark.parametrize("reserved", ["model", "messages", "stream"])
+def test_reserved_body_fields_are_rejected_at_write_time(
+    monkeypatch: pytest.MonkeyPatch, reserved: str
+) -> None:
+    """Rejected, not dropped.
+
+    Dropping would leave the interface showing a setting that never takes
+    effect, which is the no-feedback failure these fields exist to avoid.
+    """
+    response = _save_fields(monkeypatch, {reserved: "x"})
+
+    assert response.status_code == 422
+    assert "cannot be configured" in response.text
+
+
+# Covers: AC-GEN-003-10
+def test_empty_body_field_name_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    response = _save_fields(monkeypatch, {"   ": "x"})
+
+    assert response.status_code == 422
+    assert "cannot be empty" in response.text
+
+
+# Covers: AC-GEN-003-10
+def test_too_many_body_fields_are_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    response = _save_fields(monkeypatch, {f"f{i}": "x" for i in range(25)})
+
+    assert response.status_code == 422
+
+
+# Covers: AC-GEN-003-11
+def test_an_oversized_body_field_value_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = _save_fields(monkeypatch, {"note": "x" * 3000})
+
+    assert response.status_code == 422
+    assert "exceeds" in response.text
+
+
+# Covers: AC-GEN-003-09
+def test_corrupt_stored_body_fields_do_not_break_the_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tolerated like the header decoder, so one bad row cannot stop startup."""
+    _reset_provider(monkeypatch)
+    client.put(
+        "/api/provider",
+        json={"endpoint": "https://api.example.com", "model": "m"},
+    )
+    upsert_setting("provider", "bodyFields", "{not json")
+    monkeypatch.setattr(main_module, "llm", main_module._load_provider())
+
+    assert main_module.llm.extra_body == {}
+
+
+# Covers: AC-GEN-003-09
+def test_clearing_body_fields_removes_them(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Omitting the field must clear it, since the payload is replaced whole."""
+    _save_fields(monkeypatch, {"reasoning_effort": "none"})
+
+    client.put(
+        "/api/provider",
+        json={"endpoint": "https://api.example.com", "model": "m"},
+    )
+
+    assert client.get("/api/provider").json()["bodyFields"] == {}
+
+
+# --- Connection test: draft configuration, no persistence ---
+
+
+# Covers: AC-SET-005-11
+def test_test_endpoint_writes_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Testing first only means something if testing is not saving.
+
+    If the test persisted its subject, "test" and "save" would be the same
+    action under two names, and a user could not tell which one they had done.
+    """
+    _reset_provider(monkeypatch)
+    client.put(
+        "/api/provider",
+        json={"endpoint": "https://stored.example.com", "model": "stored-model"},
+    )
+    before = dict(get_namespace("provider"))
+
+    response = client.post(
+        "/api/provider/test",
+        json={
+            "endpoint": "https://draft.example.com",
+            "model": "draft-model",
+            "apiKey": "sk-draft",
+        },
+    )
+
+    assert response.status_code == 200
+    # Whatever the probe found, the stored configuration is untouched.
+    assert dict(get_namespace("provider")) == before
+
+
+# Covers: AC-SET-005-11
+def test_test_endpoint_uses_the_draft_not_the_stored_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The draft is what is on screen, which is what should be checked.
+
+    A test against the stored configuration would report on something the user
+    is in the middle of replacing.
+    """
+    _reset_provider(monkeypatch)
+    client.put(
+        "/api/provider",
+        json={"endpoint": "https://stored.example.com", "model": "stored-model"},
+    )
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(
+            {
+                "url": str(request.url),
+                "body": json.loads(request.read().decode("utf-8")),
+            }
+        )
+        return httpx.Response(
+            status_code=200, json={"choices": [{"message": {"content": "ok"}}]}
+        )
+
+    monkeypatch.setattr(
+        main_module.httpx, "AsyncClient", _recording_client_factory(handler)
+    )
+
+    response = client.post(
+        "/api/provider/test",
+        json={
+            "endpoint": "https://draft.example.com/v1",
+            "model": "draft-model",
+            "bodyFields": {"thinking": {"type": False}},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["url"] == "https://draft.example.com/v1/chat/completions"
+    assert seen[0]["body"]["model"] == "draft-model"
+    assert seen[0]["body"]["thinking"] == {"type": False}
+
+
+# Covers: AC-SET-005-11
+def test_test_endpoint_falls_back_to_the_stored_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An already-configured key is not sent back to the client, so it cannot be
+    echoed in the request. An empty draft therefore means "use the stored one",
+    which is the only interpretation that lets an existing key be tested."""
+    _reset_provider(monkeypatch)
+    client.put("/api/provider/key", json={"apiKey": "sk-stored-key"})
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("Authorization", ""))
+        return httpx.Response(
+            status_code=200, json={"choices": [{"message": {"content": "ok"}}]}
+        )
+
+    monkeypatch.setattr(
+        main_module.httpx, "AsyncClient", _recording_client_factory(handler)
+    )
+
+    client.post(
+        "/api/provider/test",
+        json={"endpoint": "https://draft.example.com", "model": "m"},
+    )
+
+    assert seen == ["Bearer sk-stored-key"]
+
+
+# Covers: AC-SET-005-11
+def test_a_draft_key_wins_over_the_stored_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A key being entered for the first time exists only in the form."""
+    _reset_provider(monkeypatch)
+    client.put("/api/provider/key", json={"apiKey": "sk-stored-key"})
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("Authorization", ""))
+        return httpx.Response(
+            status_code=200, json={"choices": [{"message": {"content": "ok"}}]}
+        )
+
+    monkeypatch.setattr(
+        main_module.httpx, "AsyncClient", _recording_client_factory(handler)
+    )
+
+    client.post(
+        "/api/provider/test",
+        json={
+            "endpoint": "https://draft.example.com",
+            "model": "m",
+            "apiKey": "sk-draft-key",
+        },
+    )
+
+    assert seen == ["Bearer sk-draft-key"]
+
+
+# Covers: AC-SET-005-11
+def test_test_endpoint_rejects_a_configuration_the_save_would_reject(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One definition of valid.
+
+    If the test accepted what the save refuses, a passing test would not mean
+    the configuration can be stored.
+    """
+    _reset_provider(monkeypatch)
+
+    response = client.post(
+        "/api/provider/test",
+        json={
+            "endpoint": "https://draft.example.com",
+            "model": "m",
+            "bodyFields": {"messages": []},
+        },
+    )
+
+    assert response.status_code == 422
+    assert "cannot be configured" in response.text
+
+
+# Covers: AC-SET-005-11
+def test_test_endpoint_reports_a_provider_error_rather_than_failing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A rejected request is a result, not a server error."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=400, json={"error": {"message": "unknown field"}}
+        )
+
+    monkeypatch.setattr(
+        main_module.httpx, "AsyncClient", _recording_client_factory(handler)
+    )
+
+    response = client.post(
+        "/api/provider/test",
+        json={"endpoint": "https://draft.example.com", "model": "m"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert body["status"] == 400
+    assert "unknown field" in body["response"]
 
 
 # Covers: AC-SET-005-02
@@ -458,21 +795,44 @@ def test_provider_rejects_invalid_headers(
     assert "headers" not in get_namespace("provider")
 
 
-# Covers: AC-SET-005-09
-def test_settings_read_excludes_custom_headers(
+# Covers: AC-SET-002-01
+def test_settings_read_excludes_the_api_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Headers may carry session credentials, so generic reads omit them."""
+    """The key is write-only, so the generic read is one place it must not appear.
+
+    Hiding it here is the only thing keeping it off the client: unlike headers,
+    nothing else serves the value.
+    """
     _reset_provider(monkeypatch)
-    upsert_setting(
-        "provider", "headers", '{"x-opencode-session": "secret-session-value"}'
-    )
+    upsert_setting("provider", "apiKey", "sk-must-not-appear-anywhere")
 
     response = client.get("/api/settings")
 
     assert response.status_code == 200
-    assert "secret-session-value" not in response.text
-    assert "headers" not in response.json().get("provider", {})
+    assert "sk-must-not-appear-anywhere" not in response.text
+    assert "apiKey" not in response.json().get("provider", {})
+
+
+# Covers: AC-SET-002-01
+def test_settings_read_includes_custom_headers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Headers are readable, because withholding them protects nothing.
+
+    /api/provider already returns them in full so they can be edited, so the
+    generic read is not a new exposure -- and keeping them out of it would make
+    them invisible to the export path, which is where a backup needs them.
+    """
+    _reset_provider(monkeypatch)
+    upsert_setting("provider", "headers", '{"x-opencode-session": "session-value"}')
+
+    response = client.get("/api/settings")
+
+    assert response.status_code == 200
+    assert response.json()["provider"]["headers"] == (
+        '{"x-opencode-session": "session-value"}'
+    )
 
 
 # Covers: AC-SET-005-08

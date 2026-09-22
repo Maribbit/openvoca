@@ -50,6 +50,14 @@ export interface LocaleMessages {
   llmProviderHint: string;
   testConnection: string;
   testingConnection: string;
+  runTest: string;
+  stopTest: string;
+  testConnectionHint: string;
+  testStopped: string;
+  testUnreachable: string;
+  testRequestLabel: string;
+  testResponseLabel: string;
+  testUsageLabel: string;
   generationDefaults: string;
   dangerZone: string;
   endpoint: string;
@@ -68,6 +76,22 @@ export interface LocaleMessages {
   headerValue: string;
   addHeader: string;
   removeHeader: string;
+  saveModel: string;
+  savingModel: string;
+  modelSaved: string;
+  modelUnsaved: string;
+  discardModel: string;
+  leaveWithUnsaved: string;
+  bodyFieldsLabel: string;
+  bodyFieldsHint: string;
+  bodyFieldName: string;
+  bodyFieldValue: string;
+  addBodyField: string;
+  bodyFieldPresets: string;
+  bodyFieldPresetsHint: string;
+  disableThinking: string;
+  lowerThinking: string;
+  bodyFieldRejected: string;
   modelPlaceholder: string;
   clearAllVocabulary: string;
   clearAllVocabularyDescription: string;
@@ -241,9 +265,18 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     interfaceSection: "Interface",
     llmProvider: "Model",
     llmProviderHint:
-      "Uses the OpenAI API format (/v1/chat/completions). Compatible with Ollama, OpenRouter, Groq, SiliconFlow, and more.",
+      "Uses the OpenAI chat completions format. Compatible with Ollama, OpenRouter, Groq, SiliconFlow, DeepSeek, Z.AI and more.",
     testConnection: "Test Connection",
     testingConnection: "Testing\u2026",
+    runTest: "Run Test",
+    stopTest: "Stop",
+    testConnectionHint:
+      "Sends one minimal request using the settings above and prints what was sent and what came back. Nothing is saved, so a configuration can be checked before it replaces one that works.",
+    testStopped: "Stopped",
+    testUnreachable: "Could not reach the application",
+    testRequestLabel: "Request",
+    testResponseLabel: "Response",
+    testUsageLabel: "Usage",
     generationDefaults: "Word Picking",
     dangerZone: "Danger Zone",
     endpoint: "Endpoint",
@@ -259,13 +292,33 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     apiKeyClearConfirm:
       "Clear the saved API key? You will need to enter it again.",
     providerSaveFailed: "Failed to save the model configuration.",
-    advancedHeaders: "Advanced: Custom Headers",
+    saveModel: "Save",
+    savingModel: "Saving\u2026",
+    modelSaved: "Saved",
+    modelUnsaved: "Unsaved changes",
+    discardModel: "Discard",
+    leaveWithUnsaved:
+      "The model settings have unsaved changes. Leave and discard them?",
+    advancedHeaders: "Custom request headers",
     advancedHeadersHint:
       "Some providers require extra request headers, e.g. x-opencode-session.",
     headerName: "Header",
     headerValue: "Value",
     addHeader: "Add Header",
     removeHeader: "Remove",
+    bodyFieldsLabel: "Request body fields",
+    bodyFieldsHint:
+      "Sent as-is in the request body. Providers disagree on how reasoning is turned off, so this is passed through rather than interpreted. A value is read as JSON when it parses, and as text otherwise, so {\"type\": \"disabled\"} and none both work without quoting.",
+    bodyFieldName: "Field",
+    bodyFieldValue: "Value (JSON or text)",
+    addBodyField: "Add Field",
+    bodyFieldPresets: "Reasoning presets",
+    bodyFieldPresetsHint:
+      "Starting points for common providers. Only your provider's own field takes effect, and some models cannot stop thinking at all -- only how hard they think. Check the usage after testing to see which happened.",
+    disableThinking: "Disable thinking",
+    lowerThinking: "Lower effort",
+    bodyFieldRejected:
+      "model, messages and stream are set by the application and cannot be configured here.",
     modelPlaceholder: "e.g. deepseek-chat, gpt-4o-mini",
     clearAllVocabulary: "Clear all vocabulary",
     clearAllVocabularyDescription:
@@ -278,11 +331,11 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     dataSection: "Data",
     exportSettings: "Export settings",
     exportSettingsDescription:
-      "Download all settings as a JSON file for backup or migration.",
+      "Download every setting as a JSON file for backup or migration, the model configuration included. The API key is never in the file; custom headers are, and a header can carry a credential, so keep it like a password.",
     exportSettingsButton: "Export JSON",
     importSettings: "Import settings",
     importSettingsDescription:
-      "Restore settings from a previously exported JSON file. API key is not imported for security.",
+      "Restore settings from a previously exported JSON file, the model configuration included. The API key is not in the file, so if the restored configuration belongs to a different provider, replace the key afterwards.",
     importSettingsButton: "Import JSON",
     importSettingsBadFormat:
       "Invalid settings file. Please select a valid JSON file exported from OpenVoca.",
@@ -450,9 +503,18 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     interfaceSection: "界面",
     llmProvider: "模型配置",
     llmProviderHint:
-      "通过 OpenAI API 格式（/v1/chat/completions）调用。兼容 Ollama、OpenRouter、Groq、硅基流动等服务。",
+      "通过 OpenAI chat completions 格式调用。兼容 Ollama、OpenRouter、Groq、硅基流动、DeepSeek、智谱等服务。",
     testConnection: "测试连接",
     testingConnection: "测试中\u2026",
+    runTest: "开始测试",
+    stopTest: "中断",
+    testConnectionHint:
+      "用上方配置发送一次最小请求，并打印发送内容与返回内容。不会保存任何设置，因此可以先验证一份配置，再决定是否用它替换现有的。",
+    testStopped: "已中断",
+    testUnreachable: "无法连接到本应用",
+    testRequestLabel: "请求",
+    testResponseLabel: "返回",
+    testUsageLabel: "用量",
     generationDefaults: "取词策略",
     dangerZone: "危险操作",
     endpoint: "端点",
@@ -466,13 +528,31 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     apiKeyClear: "清除密钥",
     apiKeyClearConfirm: "确定要清除已保存的 API 密钥吗？清除后需要重新填写。",
     providerSaveFailed: "保存模型配置失败。",
-    advancedHeaders: "高级：自定义请求头",
-    advancedHeadersHint:
-      "部分服务商需要额外的请求头，例如 x-opencode-session。",
+    saveModel: "保存",
+    savingModel: "保存中\u2026",
+    modelSaved: "已保存",
+    modelUnsaved: "有未保存的更改",
+    discardModel: "放弃更改",
+    leaveWithUnsaved: "模型配置有未保存的更改，确定离开并放弃吗？",
+    advancedHeaders: "自定义请求头",
+    advancedHeadersHint: "部分服务商需要额外的请求头，例如 x-opencode-session。",
     headerName: "请求头",
     headerValue: "取值",
     addHeader: "添加请求头",
     removeHeader: "移除",
+    bodyFieldsLabel: "请求体字段",
+    bodyFieldsHint:
+      "原样写入请求体。各家关闭思考的字段并不一致，因此这里只做透传、不做解释。取值能解析为 JSON 时就按 JSON 发送，否则按文本发送，所以 {\"type\": \"disabled\"} 和 none 都可以直接填写、无需加引号。",
+    bodyFieldName: "字段",
+    bodyFieldValue: "取值（JSON 或文本）",
+    addBodyField: "添加字段",
+    bodyFieldPresets: "思考控制预设",
+    bodyFieldPresetsHint:
+      "常见服务商的起始配置。只有你所用服务商的字段会生效；部分模型根本无法关闭思考，只能调整思考强度。测试后请查看用量，以确认实际发生了哪一种。",
+    disableThinking: "关闭思考",
+    lowerThinking: "降低强度",
+    bodyFieldRejected:
+      "model、messages 与 stream 由应用设置，不能在此配置。",
     modelPlaceholder: "如 deepseek-chat、gpt-4o-mini",
     clearAllVocabulary: "清空所有词汇",
     clearAllVocabularyDescription: "永久删除所有单词记录和学习进度。",
@@ -483,11 +563,12 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     clearSettingsButton: "清空设置",
     dataSection: "数据",
     exportSettings: "导出设置",
-    exportSettingsDescription: "将所有设置下载为 JSON 文件，用于备份或迁移。",
+    exportSettingsDescription:
+      "将所有设置导出为 JSON 文件，用于备份或迁移，包含模型配置。文件不包含 API 密钥；包含自定义请求头，而请求头可能承载凭据，请像对待密码一样保管。",
     exportSettingsButton: "导出 JSON",
     importSettings: "导入设置",
     importSettingsDescription:
-      "从之前导出的 JSON 文件恢复设置。为安全起见，API 密钥不会被导入。",
+      "从之前导出的 JSON 文件恢复设置，包含模型配置。文件不含 API 密钥；若恢复的配置属于另一个服务商，请之后重新填写密钥。",
     importSettingsButton: "导入 JSON",
     importSettingsBadFormat:
       "无效的设置文件，请选择从 OpenVoca 导出的 JSON 文件。",

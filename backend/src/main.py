@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.integrations.openai_compat import OpenAICompatibleClient
-from src.integrations.openai_compat import normalize_base_url
+from src.integrations.openai_compat import RESERVED_PAYLOAD_KEYS, normalize_base_url
 from src.integrations.provider import LLMProvider
 from src.services.prompt_builder import (
     build_sentence_generation_prompt,
@@ -46,6 +46,7 @@ from src.services.settings_store import (
     delete_setting,
     get_all_settings,
     get_namespace,
+    get_setting,
     init_settings_table,
     upsert_namespace,
     upsert_setting,
@@ -186,6 +187,11 @@ _HEADER_NAME_RE = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 _MAX_HEADER_COUNT = 20
 _MAX_HEADER_LENGTH = 1000
 
+# Extra request body fields. Values are arbitrary JSON, so there is no shape to
+# validate beyond size; the field names are what matter.
+_MAX_BODY_FIELD_COUNT = 20
+_MAX_BODY_VALUE_LENGTH = 2000
+
 
 def _validate_headers(headers: dict[str, str]) -> dict[str, str]:
     """Reject header names or values that cannot be sent safely."""
@@ -226,6 +232,48 @@ def _decode_headers(raw: str) -> dict[str, str]:
     }
 
 
+def _validate_body_fields(fields: dict[str, object]) -> dict[str, object]:
+    """Reject configured request body fields that would break the request.
+
+    Rejecting at write time is what makes the failure legible. Silently dropping
+    a configured field would present as "you set it but it did nothing", which
+    is the same no-feedback failure the field exists to avoid.
+    """
+    if len(fields) > _MAX_BODY_FIELD_COUNT:
+        raise ValueError(f"at most {_MAX_BODY_FIELD_COUNT} request fields are allowed")
+    for name, value in fields.items():
+        if not name.strip():
+            raise ValueError("request field names cannot be empty")
+        if name in RESERVED_PAYLOAD_KEYS:
+            raise ValueError(
+                f"{name!r} is set by the application and cannot be configured"
+            )
+        encoded = len(json.dumps(value))
+        if encoded > _MAX_BODY_VALUE_LENGTH:
+            raise ValueError(
+                f"value for {name!r} exceeds {_MAX_BODY_VALUE_LENGTH} characters"
+            )
+    return fields
+
+
+def _encode_body_fields(fields: dict[str, object]) -> str:
+    """Serialise request body fields for the single-string settings store."""
+    return json.dumps(fields, ensure_ascii=False, sort_keys=True)
+
+
+def _decode_body_fields(raw: str) -> dict[str, object]:
+    """Read back persisted body fields, tolerating absent or corrupt values."""
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {k: v for k, v in parsed.items() if isinstance(k, str)}
+
+
 def _load_provider() -> OpenAICompatibleClient:
     """Build the LLM client from persisted settings.
 
@@ -238,6 +286,7 @@ def _load_provider() -> OpenAICompatibleClient:
         model=cfg.get("model", DEFAULT_MODEL),
         api_key=cfg.get("apiKey", ""),
         extra_headers=_decode_headers(cfg.get("headers", "{}")),
+        extra_body=_decode_body_fields(cfg.get("bodyFields", "{}")),
     )
 
 
@@ -453,7 +502,7 @@ def _mask_api_key(key: str) -> str:
 
 
 class ProviderConfig(BaseModel):
-    """Endpoint, model and optional custom request headers.
+    """Endpoint, model, custom headers and extra request body fields.
 
     The API key has its own lifecycle and is never part of this payload.
     """
@@ -463,6 +512,10 @@ class ProviderConfig(BaseModel):
     endpoint: str = Field(default=DEFAULT_ENDPOINT, max_length=500)
     model: str = Field(default=DEFAULT_MODEL, max_length=200)
     headers: dict[str, str] = Field(default_factory=dict)
+    #: Sent verbatim in the request body. Values are arbitrary JSON because the
+    #: fields providers use to control reasoning have no common shape: some are
+    #: flat strings, some nested objects, some booleans. See the client.
+    body_fields: dict[str, object] = Field(default_factory=dict, alias="bodyFields")
 
     @field_validator("endpoint")
     @classmethod
@@ -485,6 +538,30 @@ class ProviderConfig(BaseModel):
         except ValueError as exc:
             raise ValueError(str(exc)) from exc
 
+    @field_validator("body_fields")
+    @classmethod
+    def _check_body_fields(cls, value: dict[str, object]) -> dict[str, object]:
+        try:
+            return _validate_body_fields(value)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+
+
+class ProviderTestRequest(ProviderConfig):
+    """A draft configuration, plus a key that may not be stored yet.
+
+    Extends the write payload so the same validation applies to both. A
+    configuration the save path would reject must not be testable either, or the
+    test would approve something the save then refuses -- the two would disagree
+    about what is valid.
+
+    The key is separate because it has its own lifecycle. An empty value means
+    "use whatever is stored", which is what the interface has when a key is
+    already configured and only a hint is shown.
+    """
+
+    api_key: str = Field(default="", alias="apiKey")
+
 
 class ProviderKeyBody(BaseModel):
     """API key write payload.
@@ -494,21 +571,21 @@ class ProviderKeyBody(BaseModel):
     """
 
     model_config = ConfigDict(populate_by_name=True)
-
     api_key: str = Field(alias="apiKey", min_length=1, max_length=500)
 
 
 def _provider_state() -> dict[str, object]:
     """Describe the active provider without exposing the key itself.
 
-    Custom headers are returned in full: unlike the key they must be editable,
-    so the client needs their actual contents.
+    Custom headers and body fields are returned in full: unlike the key they
+    must be editable, so the client needs their actual contents.
     """
     if isinstance(llm, OpenAICompatibleClient):
         return {
             "endpoint": llm.base_url,
             "model": llm.model,
             "headers": dict(llm.extra_headers),
+            "bodyFields": dict(llm.extra_body),
             "apiKeySet": bool(llm.api_key),
             "apiKeyHint": _mask_api_key(llm.api_key),
         }
@@ -516,6 +593,7 @@ def _provider_state() -> dict[str, object]:
         "endpoint": DEFAULT_ENDPOINT,
         "model": DEFAULT_MODEL,
         "headers": {},
+        "bodyFields": {},
         "apiKeySet": False,
         "apiKeyHint": "",
     }
@@ -541,13 +619,14 @@ def get_provider() -> dict[str, object]:
 
 @app.put("/api/provider")
 async def set_provider(config: ProviderConfig) -> dict[str, object]:
-    """Update endpoint, model and custom headers, leaving the API key untouched."""
+    """Update endpoint, model, headers and body fields; the key is untouched."""
     upsert_namespace(
         PROVIDER_NAMESPACE,
         {
             "endpoint": config.endpoint,
             "model": config.model,
             "headers": _encode_headers(config.headers),
+            "bodyFields": _encode_body_fields(config.body_fields),
         },
     )
     await _reload_provider()
@@ -571,13 +650,31 @@ async def clear_provider_key() -> dict[str, object]:
 
 
 @app.post("/api/provider/test")
-async def test_provider() -> dict[str, str | bool]:
-    """Send a minimal request to verify the current LLM connection."""
+async def test_provider(config: ProviderTestRequest) -> dict[str, object]:
+    """Run one minimal request against a configuration, without saving it.
+
+    The configuration comes from the request rather than from storage, so a
+    connection can be proven before it replaces one that already works. Nothing
+    here writes to the database, which is what makes testing safe to do first --
+    and what keeps "test" and "save" from being the same action wearing two
+    labels.
+
+    The client is built and discarded per call rather than reusing the active
+    one: the active client holds the saved configuration, and testing the saved
+    configuration is precisely what this endpoint is here to avoid.
+    """
+    stored_key = get_setting(PROVIDER_NAMESPACE, "apiKey") or ""
+    probe_client = OpenAICompatibleClient(
+        base_url=config.endpoint,
+        model=config.model,
+        api_key=config.api_key or stored_key,
+        extra_headers=config.headers,
+        extra_body=config.body_fields,
+    )
     try:
-        result = await llm.generate_completion("Say 'ok' and nothing else.")
-        return {"ok": True, "message": result[:200]}
-    except (httpx.HTTPError, ValueError) as exc:
-        return {"ok": False, "message": str(exc)[:300]}
+        return await probe_client.probe()
+    finally:
+        await probe_client.aclose()
 
 
 async def _generate_reading_response(
@@ -918,16 +1015,20 @@ class SettingValueBody(BaseModel):
 
 
 def _public_settings(namespace: str, settings: dict[str, str]) -> dict[str, str]:
-    """Remove values that are served only by their dedicated endpoint.
+    """Remove values the client is never given in the first place.
 
-    The provider API key and custom headers are served by /api/provider; the
-    generic settings read must not carry them, so local caches and exports
-    contain no trace of either.
+    Only the API key is hidden, and only because hiding it is the sole thing
+    keeping it off the client: it is write-only, and the read model reports a
+    boolean plus an irreversible hint instead of the value.
+
+    Custom headers are deliberately *not* hidden. They reach the client anyway,
+    because /api/provider returns them in full so they can be edited -- so
+    withholding them from this endpoint protects nothing while making them
+    invisible to the export path, which is where a complete backup needs them.
     """
     if namespace != PROVIDER_NAMESPACE:
         return settings
-    hidden = {"apiKey", "headers"}
-    return {k: v for k, v in settings.items() if k not in hidden}
+    return {k: v for k, v in settings.items() if k != "apiKey"}
 
 
 def _reject_protected_namespace(namespace: str) -> None:
